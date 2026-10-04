@@ -6,6 +6,7 @@ It is deliberately only a blog: no page builder, no generic CMS.
 
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Installing with an agent](#installing-with-an-agent)
 - [Configuration](#configuration)
 - [Layout integration](#layout-integration)
 - [Theming and overriding views](#theming-and-overriding-views)
@@ -60,6 +61,126 @@ RESPONSE_CACHE_DRIVER=redis       # store for the full-page cache
 ```
 
 Then, in Marketing OS, add a publishing destination with the **Blog Kit** payload format, endpoint `https://your-app.com/blog/api/marketing-os/v1/posts`, bearer auth with the token, and the signing secret.
+
+## Installing with an agent
+
+> **This section is written for a coding agent** (Claude Code or similar) asked to "install Blog Kit" in a host app. Humans can follow it too. It uses the rest of this README as reference. Work through the phases in order, and don't skip the checks at the end of a phase.
+
+### Ground rules
+
+- **Never commit.** Leave all changes uncommitted, and propose commit messages at the end.
+- **Never commit or print secrets.** Generated tokens go only into `.env`. Add them to `.env.example` as empty keys.
+- **Fail visibly.** If a check fails, stop and report the exact output. Don't work around it with a fallback, and don't remove a check to make it pass.
+- **Follow the host's conventions**: its formatter (`vendor/bin/pint` when present), its existing provider and config style, and its test runner.
+
+### Phase 1: Check the host before changing anything
+
+Run these checks and **stop with a report** if any of them fails:
+
+| Check | How | Required |
+| --- | --- | --- |
+| PHP / Laravel | `php -v`, `composer show laravel/framework` | PHP 8.4, Laravel 13 |
+| Filament (only for the admin section) | `composer show filament/filament` | 5.x. If it's 3.x or 4.x, install without the plugin and report that an upgrade is needed |
+| Route clash | `php artisan route:list --path=blog` | Nothing under `/blog` yet. If there is (an old blog, Docusaurus proxy, `Route::view`), ask before choosing another prefix or removing it |
+| Queue | `QUEUE_CONNECTION` in `.env`, Horizon in `composer.json` | Not `sync` in production. Image downloads and purges are queued jobs |
+| Layout | Find the public marketing layout in `resources/views` (often `layouts/app.blade.php` or `components/layouts/*`) | It must use `@yield` for the main content and title, and `@stack` in `<head>`. If it is a component layout (`{{ $slot }}`), see Phase 3 |
+| Tailwind | Find the CSS entry with `@import "tailwindcss"` (usually `resources/css/app.css`) | Tailwind v4 |
+
+### Phase 2: Ask the human
+
+Ask these questions together, once, before installing. Offer the defaults in brackets.
+
+1. **Blog title and description** shown on `/blog`. [title: "Blog"]
+2. **Author name and URL** for the byline and JSON-LD. [a person or the company]
+3. **Publisher logo URL**, an absolute URL to a square or wide PNG. [look for one in `public/`]
+4. **Marketing OS product id** for this app, which turns on the `BLOG_KIT_PRODUCT_ID` guard. [leave empty]
+5. **Image disk**: `public`, or an existing S3/R2 disk with a public `url`. [`public`]
+6. **Cloudflare zone id and API token** with only the Zone → Cache Purge permission. [leave empty: purges are skipped with a warning, and the human adds them later]
+7. **Filament**: which panel, and who may use the Blog section (the `viewBlogKit` gate). [the default panel, and the same rule the panel uses for admins]
+
+### Phase 3: Install
+
+1. Add the VCS repository from [Installation](#installation) to `composer.json` if it isn't there. Then run `composer require lostdomain/blog-kit:^1.0`.
+2. Run `php artisan blog-kit:install`. It publishes `config/blog-kit.php` and the feed assets, and prints a fresh `BLOG_KIT_API_TOKEN` and `BLOG_KIT_SIGNING_SECRET`.
+3. Write `.env`. Use the generated token and secret and the answers from Phase 2. The keys are listed under [Installation](#installation); also set `BLOG_KIT_TITLE`, `BLOG_KIT_DESCRIPTION` and `BLOG_KIT_SITE_NAME`. Set `RESPONSE_CACHE_DRIVER` to `redis` when Redis is configured, otherwise to the app's cache store. Add every `BLOG_KIT_*` key to `.env.example` with an empty value.
+4. Run `php artisan migrate`. Run `php artisan storage:link` if the image disk is `public` and `public/storage` doesn't exist yet.
+5. Wire the layout (see [Layout integration](#layout-integration)):
+   - Set `BLOG_KIT_LAYOUT` to the layout's view name, e.g. `layouts.app`.
+   - If the layout's section or stack names differ from `content`, `title` and `head`, change `sections` and `head_stack` in `config/blog-kit.php`.
+   - If the layout prints its own `<meta name="description">`, canonical or `og:*` tags, wrap them in `@unless(request()->routeIs('blog-kit.*')) ... @endunless` so blog pages don't get duplicates.
+   - **Component layouts** (`<x-app-layout>` with `{{ $slot }}`): don't rewrite the layout. Create a thin `resources/views/layouts/blog.blade.php` that renders the component and passes `@yield('content')` into the slot and `@stack('head')` into the head slot. Then point `BLOG_KIT_LAYOUT` at it.
+   - Check the layout for things that need a session: `@csrf` forms, `session()`, `old()`. Blog pages run without sessions (see [Layout integration](#layout-integration)). Don't add `web` to `blog-kit.middleware` to "fix" this; report what you found instead.
+6. Tailwind: add `@source "<relative path>/vendor/lostdomain/blog-kit/resources/views";` to the CSS entry. The path is relative to that CSS file: from `resources/css/app.css` it is `../../vendor/...`. Map the theme variables to the app's design tokens with a `.blog-kit { --blog-kit-accent: ...; }` rule, taking colours and fonts from the existing CSS (see [Theming](#theming-and-overriding-views)). Then build: `npm run build`.
+7. Filament (only when Phase 1 found Filament 5):
+   - Add `->plugin(\Lostdomain\BlogKit\Filament\BlogKitPlugin::make())` to the chosen panel provider.
+   - Define the gate from the answer to question 7 in `AppServiceProvider::boot()`:
+
+     ```php
+     Gate::define('viewBlogKit', fn ($user) => /* answer to question 7 */);
+     ```
+
+8. Navigation and sitemap: add a "Blog" link (`route('blog-kit.index')`) wherever the site's main nav and footer links live. If the app already serves a sitemap, add the blog with `BlogKit::sitemapIndexEntry()` or `BlogKit::sitemapTags()` (see [Feeds and sitemap](#feeds-and-sitemap)) instead of leaving two disconnected sitemaps.
+9. Format the changed files with the host's formatter.
+
+**Don't** publish the package views unless the human asks. Overrides stop receiving updates.
+
+### Phase 4: Verify
+
+Run every check and include the results in your report.
+
+```bash
+php artisan route:list --name=blog-kit   # 7 routes: api.posts, index, feed.rss, feed.atom, sitemap, tag, show
+php artisan config:show blog-kit         # token/secret set, layout and sections as intended
+```
+
+Check that the API accepts a signed `_test` delivery. Read the token, secret and product id from `.env` (they are not exported to your shell), and use the app's local URL (Herd/Valet `*.test`, or `php artisan serve`):
+
+```bash
+APP=http://your-app.test
+TOKEN=...; SECRET=...; PRODUCT=1   # PRODUCT must equal BLOG_KIT_PRODUCT_ID when that is set
+BODY='{"schema_version":1,"event":"publish","delivery_id":"agent-install-check","product_id":'$PRODUCT',"content_item_id":"agent-install-check","title":"Install check","slug":"install-check","body_html":"<p>ok</p>","_test":true}'
+TS=$(date +%s)
+SIG=$(printf '%s' "$TS.$BODY" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/^.* //')
+curl -sS -X POST "$APP/blog/api/marketing-os/v1/posts" \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
+  -H "X-Marketing-OS-Timestamp: $TS" -H "X-Marketing-OS-Signature: $SIG" \
+  --data-binary "$BODY"
+# expect: {"id":null,"url":"http://your-app.test/blog/install-check","test":true}
+# then repeat with a wrong signature, e.g. SIG=deadbeef; expect HTTP 401 with "reason":"invalid_signature"
+```
+
+Check the public pages:
+
+- `/blog` returns 200 inside the site layout with the site's styling, and shows "No posts yet." on a fresh install.
+- `/blog/rss.xml`, `/blog/atom.xml` and `/blog/sitemap.xml` return 200 and valid XML.
+- `curl -sI $APP/blog` shows the configured `Cache-Control` and no `Set-Cookie`.
+- When Filament is installed, the Blog section shows up for a user who passes the gate.
+- **Optional, only if the human agrees**, because it writes to the database: create a local post in Filament or with `Post::factory()`, look at `/blog/{slug}` in a browser at mobile and desktop widths, then delete the post.
+
+Finally, run the host's test suite and confirm nothing that passed before is failing now.
+
+### Phase 5: Report and hand off
+
+Report:
+
+- what changed, file by file
+- the check results from Phase 4
+- the open items
+
+Hand these items to the human, because an agent shouldn't do them:
+
+- **Production secrets.** Put the token and secret in the deploy environment, and run `migrate` and `storage:link` on deploy.
+- **Marketing OS destination.** Create it in the Marketing OS web interface:
+  - payload format: **Blog Kit**
+  - endpoint: `https://<production domain>/blog/api/marketing-os/v1/posts`
+  - auth: bearer, using the token
+  - signing secret
+  - then use its "test" button, which sends a `_test` delivery
+- **Cloudflare.** Add a Cache Rule for `/blog*` that caches HTML and respects origin `Cache-Control`, and set the zone id and API token (see [Caching and Cloudflare](#caching-and-cloudflare)).
+- **Search Console.** Submit `https://<domain>/blog/sitemap.xml`, or the host's sitemap index if the blog was merged into it.
+- **Migrations from another blog.** For example Docusaurus: list the old URLs that need redirects (see [Migrating from Docusaurus](#migrating-from-docusaurus)).
+
+Propose commit messages (Conventional Commits) for the changes, without committing.
 
 ## Configuration
 
