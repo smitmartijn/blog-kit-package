@@ -22,7 +22,12 @@ class BlogKit
         $middleware = [...(array) config('blog-kit.middleware', []), PublicBlogPage::class];
 
         if (config('blog-kit.cache.enabled')) {
-            $middleware[] = CacheResponse::for((int) config('blog-kit.cache.lifetime'));
+            $lifetime = (int) config('blog-kit.cache.lifetime');
+
+            // responsecache 8 encodes options via for(); 7 takes the lifetime as an argument.
+            $middleware[] = method_exists(CacheResponse::class, 'for')
+                ? CacheResponse::for($lifetime)
+                : CacheResponse::class.':'.$lifetime;
         }
 
         return $middleware;

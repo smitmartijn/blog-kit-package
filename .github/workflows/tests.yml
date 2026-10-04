@@ -1,0 +1,61 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }} · Filament ${{ matrix.filament }} · ${{ matrix.stability }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+        laravel: ['12', '13']
+        filament: ['4', '5']
+        stability: [prefer-lowest, prefer-stable]
+        exclude:
+          # Laravel 13 requires PHP 8.3.
+          - php: '8.2'
+            laravel: '13'
+        include:
+          - laravel: '12'
+            testbench: '^10.0'
+          - laravel: '13'
+            testbench: '^11.0'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, intl, fileinfo
+          coverage: none
+
+      - name: Install dependencies
+        run: |
+          composer require --dev --no-update --no-interaction \
+            "laravel/framework:^${{ matrix.laravel }}.0" \
+            "orchestra/testbench:${{ matrix.testbench }}" \
+            "filament/filament:^${{ matrix.filament }}.0"
+          composer update --${{ matrix.stability }} --prefer-dist --no-interaction --no-progress
+
+      - name: Installed versions
+        run: composer show | grep -E '^(laravel/framework|filament/filament|livewire/livewire|spatie/laravel-responsecache|spatie/laravel-sitemap|symfony/html-sanitizer) '
+
+      - name: Tests
+        run: vendor/bin/phpunit
+
+  pint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - run: composer install --prefer-dist --no-interaction --no-progress
+      - run: vendor/bin/pint --test

@@ -28,13 +28,13 @@ abstract class FilamentTestCase extends TestCase
 
     protected function getPackageProviders($app): array
     {
-        return [
+        // Not every Filament 4/5 release ships every sub-package (query-builder came later).
+        return array_values(array_filter([
             ...parent::getPackageProviders($app),
             BladeIconsServiceProvider::class,
             BladeHeroiconsServiceProvider::class,
             BladeCaptureDirectiveServiceProvider::class,
             PowerJoinsServiceProvider::class,
-            LivewireServiceProvider::class,
             SupportServiceProvider::class,
             ActionsServiceProvider::class,
             FormsServiceProvider::class,
@@ -45,8 +45,11 @@ abstract class FilamentTestCase extends TestCase
             TablesServiceProvider::class,
             WidgetsServiceProvider::class,
             FilamentServiceProvider::class,
+            // After Filament, the order package discovery uses in a real app: Filament < 4.13.3 / 5.8.3
+            // binds Livewire's DataStore as non-shared, which breaks when Livewire registers first.
+            LivewireServiceProvider::class,
             AdminPanelProvider::class,
-        ];
+        ], 'class_exists'));
     }
 
     protected function defineEnvironment($app): void

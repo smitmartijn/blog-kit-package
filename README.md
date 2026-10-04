@@ -32,10 +32,10 @@ It is deliberately only a blog: no page builder, no generic CMS.
 
 ## Requirements
 
-- PHP 8.4, Laravel 13
+- PHP 8.2+, Laravel 12 or 13 (Laravel 13 itself needs PHP 8.3+)
 - A queue worker (Horizon / Redis): image downloads and cache purges are queued
 - A public disk for images (`public` or an S3/R2 disk with a public URL)
-- Optional: Filament 5 for the admin section; a Cloudflare zone for edge purges
+- Optional: Filament 4 (4.12.6+) or 5 (5.7.6+) for the admin section; a Cloudflare zone for edge purges
 
 ## Installation
 
@@ -90,8 +90,8 @@ Run these checks and **stop with a report** if any of them fails:
 
 | Check | How | Required |
 | --- | --- | --- |
-| PHP / Laravel | `php -v`, `composer show laravel/framework` | PHP 8.4, Laravel 13 |
-| Filament (only for the admin section) | `composer show filament/filament` | 5.x. If it's 3.x or 4.x, install without the plugin and report that an upgrade is needed |
+| PHP / Laravel | `php -v`, `composer show laravel/framework` | PHP 8.2+, Laravel 12 or 13. On Laravel 11 or older, stop and report that an upgrade is needed |
+| Filament (only for the admin section) | `composer show filament/filament` | 4.12.6+ or 5.7.6+. On 3.x, or an older 4.x/5.x the host won't update, install without the plugin and report that a Filament upgrade is needed |
 | Route clash | `php artisan route:list --path=blog` | Nothing under `/blog` yet. If there is (an old blog, Docusaurus proxy, `Route::view`), ask before choosing another prefix or removing it |
 | Queue | `QUEUE_CONNECTION` in `.env`, Horizon in `composer.json` | Not `sync` in production. Image downloads and purges are queued jobs |
 | Layout | Find the public marketing layout in `resources/views` (often `layouts/app.blade.php` or `components/layouts/*`) | It must use `@yield` for the main content and title, and `@stack` in `<head>`. If it is a component layout (`{{ $slot }}`), see Phase 3 |
@@ -122,7 +122,7 @@ Ask these questions together, once, before installing. Offer the defaults in bra
    - **Component layouts** (`<x-app-layout>` with `{{ $slot }}`): don't rewrite the layout. Create a thin `resources/views/layouts/blog.blade.php` that renders the component and passes `@yield('content')` into the slot and `@stack('head')` into the head slot. Then point `BLOG_KIT_LAYOUT` at it.
    - Check the layout for things that need a session: `@csrf` forms, `session()`, `old()`. Blog pages run without sessions (see [Layout integration](#layout-integration)). Don't add `web` to `blog-kit.middleware` to "fix" this; report what you found instead.
 6. Tailwind: add `@source "<relative path>/vendor/lostdomain/blog-kit/resources/views";` to the CSS entry. The path is relative to that CSS file: from `resources/css/app.css` it is `../../vendor/...`. Map the theme variables to the app's design tokens with a `.blog-kit { --blog-kit-accent: ...; }` rule, taking colours and fonts from the existing CSS (see [Theming](#theming-and-overriding-views)). Then build: `npm run build`.
-7. Filament (only when Phase 1 found Filament 5):
+7. Filament (only when Phase 1 found Filament 4 or 5):
    - Add `->plugin(\Lostdomain\BlogKit\Filament\BlogKitPlugin::make())` to the chosen panel provider.
    - Define the gate from the answer to question 7 in `AppServiceProvider::boot()`:
 
@@ -279,7 +279,7 @@ php artisan vendor:publish --tag=blog-kit-views
 
 ## Filament admin
 
-Requires Filament 5. Register the plugin and define the gate:
+Requires Filament 4 or 5. Register the plugin and define the gate:
 
 ```php
 // app/Providers/Filament/AdminPanelProvider.php

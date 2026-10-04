@@ -9,7 +9,7 @@ use Lostdomain\BlogKit\Filament\Resources\Redirects\RedirectResource;
 use UnitEnum;
 
 /**
- * Adds the Blog section to a Filament 5 panel:
+ * Adds the Blog section to a Filament 4 or 5 panel:
  * ->plugin(BlogKitPlugin::make()->navigationGroup('Blog'))
  */
 class BlogKitPlugin implements Plugin

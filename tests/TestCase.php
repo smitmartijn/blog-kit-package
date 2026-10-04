@@ -45,6 +45,7 @@ abstract class TestCase extends Orchestra
         $app['config']->set('database.default', 'testing');
         $app['config']->set('view.paths', [__DIR__.'/Fixtures/views', ...$app['config']->get('view.paths', [])]);
         $app['config']->set('responsecache.cache.store', 'array');
+        $app['config']->set('responsecache.cache_store', 'array'); // responsecache 7
         $app['config']->set('responsecache.enabled', true);
         $app['config']->set('filesystems.disks.public', [
             'driver' => 'local',
