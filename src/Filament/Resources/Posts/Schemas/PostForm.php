@@ -6,20 +6,26 @@ use Filament\Forms\Components\CodeEditor;
 use Filament\Forms\Components\CodeEditor\Enums\Language;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Html;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Lostdomain\BlogKit\BlogKit;
 use Lostdomain\BlogKit\Models\Post;
+use Lostdomain\BlogKit\Services\HtmlSanitizer;
+use Lostdomain\BlogKit\Services\MarkdownRenderer;
 
 class PostForm
 {
@@ -55,26 +61,6 @@ class PostForm
                             ->prefix('/'.trim((string) config('blog-kit.route_prefix'), '/').'/')
                             ->helperText('Changing the slug of a published post keeps a 301 redirect from the old URL.'),
                         Textarea::make('excerpt')->rows(3)->maxLength(5000),
-                        CodeEditor::make('body_html')
-                            ->label('Body (HTML)')
-                            ->language(Language::Html)
-                            ->required()
-                            ->helperText('Sanitized when rendered. Remote image URLs are downloaded to the image disk after saving.'),
-                    ]),
-                    Section::make('FAQ')->collapsible()->schema([
-                        Repeater::make('faq')
-                            ->hiddenLabel()
-                            ->schema([
-                                TextInput::make('question')->required(),
-                                Textarea::make('answer')->required()->rows(3),
-                            ])
-                            ->defaultItems(0)
-                            ->addActionLabel('Add question')
-                            ->collapsible()
-                            ->itemLabel(fn (array $state) => $state['question'] ?? null),
-                    ]),
-                    Section::make('Call to action')->collapsible()->schema([
-                        Textarea::make('cta')->hiddenLabel()->rows(3),
                     ]),
                 ]),
                 Group::make()->columnSpan(['lg' => 1])->schema([
@@ -107,6 +93,67 @@ class PostForm
                     ]),
                 ]),
             ]),
+
+            Section::make('Body')->columnSpanFull()->schema([
+                ToggleButtons::make('body_format')
+                    ->hiddenLabel()
+                    ->options([Post::FORMAT_MARKDOWN => 'Markdown', Post::FORMAT_HTML => 'HTML'])
+                    ->icons([Post::FORMAT_MARKDOWN => 'heroicon-o-pencil-square', Post::FORMAT_HTML => 'heroicon-o-code-bracket'])
+                    ->default(Post::FORMAT_MARKDOWN)
+                    ->inline()
+                    ->live()
+                    ->helperText(fn (Get $get) => $get('body_format') === Post::FORMAT_HTML
+                        ? 'Raw HTML, saved as written. The Markdown version is not updated while this post is in HTML mode.'
+                        : 'The page is rendered from this Markdown when you save. An image on its own line becomes a figure; ![alt](url "caption") adds a caption.'),
+                Grid::make(['default' => 1, 'xl' => 2])
+                    ->visible(fn (Get $get) => $get('body_format') !== Post::FORMAT_HTML)
+                    ->schema([
+                        MarkdownEditor::make('body_markdown')
+                            ->label('Markdown')
+                            ->required()
+                            ->live(debounce: 750)
+                            ->minHeight('32rem')
+                            ->fileAttachmentsDisk(fn () => config('blog-kit.images.disk'))
+                            ->fileAttachmentsDirectory(fn () => trim((string) config('blog-kit.images.directory'), '/').'/uploads'),
+                        Html::make(fn (Get $get) => self::preview((string) $get('body_markdown'))),
+                    ]),
+                CodeEditor::make('body_html')
+                    ->label('HTML')
+                    ->language(Language::Html)
+                    ->required()
+                    ->visible(fn (Get $get) => $get('body_format') === Post::FORMAT_HTML)
+                    ->helperText('Sanitized when rendered. Remote image URLs are downloaded to the image disk after saving.'),
+            ]),
+            Section::make('FAQ')->columnSpanFull()->collapsible()->schema([
+                Repeater::make('faq')
+                    ->hiddenLabel()
+                    ->schema([
+                        TextInput::make('question')->required(),
+                        Textarea::make('answer')->required()->rows(3),
+                    ])
+                    ->defaultItems(0)
+                    ->addActionLabel('Add question')
+                    ->collapsible()
+                    ->itemLabel(fn (array $state) => $state['question'] ?? null),
+            ]),
+            Section::make('Call to action')->columnSpanFull()->collapsible()->schema([
+                Textarea::make('cta')->hiddenLabel()->rows(3),
+            ]),
         ]);
+    }
+
+    /** The article body as the public page renders it, with the package's prose styles. */
+    private static function preview(string $markdown): HtmlString
+    {
+        $body = trim($markdown) === ''
+            ? '<p style="opacity:.6">The preview appears here as you write.</p>'
+            : app(HtmlSanitizer::class)->sanitize(app(MarkdownRenderer::class)->toHtml($markdown));
+
+        return new HtmlString(
+            view('blog-kit::partials.styles')->render()
+            .'<p style="font-size:.875rem;font-weight:500;margin-bottom:.5rem">Preview</p>'
+            .'<div class="blog-kit" style="max-height:40rem;overflow-y:auto;padding:1rem;border:1px solid rgb(127 127 127 / .25);border-radius:.5rem">'
+            .'<div class="blog-kit-prose">'.$body.'</div></div>'
+        );
     }
 }

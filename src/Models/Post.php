@@ -33,6 +33,12 @@ class Post extends Model implements Feedable
 
     public const SOURCE_LOCAL = 'local';
 
+    /** body_html is the source (Marketing OS deliveries, raw HTML edits). */
+    public const FORMAT_HTML = 'html';
+
+    /** body_markdown is the source; body_html is rendered from it on save. */
+    public const FORMAT_MARKDOWN = 'markdown';
+
     public const IMAGES_NONE = 'none';
 
     public const IMAGES_PENDING = 'pending';
@@ -47,6 +53,7 @@ class Post extends Model implements Feedable
 
     protected $attributes = [
         'source' => self::SOURCE_MARKETING_OS,
+        'body_format' => self::FORMAT_HTML,
         'images_status' => self::IMAGES_NONE,
         'revision' => 1,
     ];

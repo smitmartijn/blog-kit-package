@@ -4,6 +4,7 @@ namespace Lostdomain\BlogKit\Filament\Resources\Posts;
 
 use Illuminate\Support\Facades\Storage;
 use Lostdomain\BlogKit\Models\Post;
+use Lostdomain\BlogKit\Services\MarkdownRenderer;
 
 /** Converts between Post records and the admin form state. */
 class PostFormData
@@ -13,8 +14,25 @@ class PostFormData
     {
         $data['tags'] = $post->tags->pluck('name')->all();
         $data['cta'] = $post->ctaData()['text'] ?? null;
+        $data['body_format'] = self::editorFormat($post);
 
         return $data;
+    }
+
+    /**
+     * Markdown whenever it is the source of truth. That includes untouched
+     * Marketing OS deliveries, which always carry the Markdown they were
+     * rendered from. Hand-edited HTML stays HTML: its Markdown is stale.
+     */
+    public static function editorFormat(Post $post): string
+    {
+        if ($post->body_format === Post::FORMAT_MARKDOWN) {
+            return Post::FORMAT_MARKDOWN;
+        }
+
+        $delivered = $post->isFromMarketingOs() && ! $post->isLocked();
+
+        return $delivered && filled($post->body_markdown) ? Post::FORMAT_MARKDOWN : Post::FORMAT_HTML;
     }
 
     /**
@@ -44,6 +62,14 @@ class PostFormData
 
         $data['faq'] = array_values((array) ($data['faq'] ?? [])) ?: null;
         $data['cta'] = filled($data['cta'] ?? null) ? (string) $data['cta'] : null;
+
+        $data['body_format'] = ($data['body_format'] ?? Post::FORMAT_MARKDOWN) === Post::FORMAT_HTML
+            ? Post::FORMAT_HTML
+            : Post::FORMAT_MARKDOWN;
+
+        if ($data['body_format'] === Post::FORMAT_MARKDOWN) {
+            $data['body_html'] = app(MarkdownRenderer::class)->toHtml((string) ($data['body_markdown'] ?? ''));
+        }
 
         unset($data['tags'], $data['featured_upload']);
 

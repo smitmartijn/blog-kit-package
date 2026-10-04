@@ -2,6 +2,11 @@
 
 All notable changes to `lostdomain/blog-kit` are documented here. The package follows semantic versioning.
 
+## Unreleased
+
+- Admin editor writes posts in Markdown with a live preview and image uploads; HTML is rendered on save (GFM, heading ids, figures with captions). Marketing OS posts open in the Markdown they were delivered with. Raw HTML mode stays available per post.
+- New `body_format` column: run `php artisan migrate`.
+
 ## 1.0.0 - Unreleased
 
 - Marketing OS receiver (contract v1): bearer token, timestamped HMAC signature, idempotent upsert by `content_item_id`, slug-change redirects, unpublish (410), `_test` deliveries, out-of-order protection.

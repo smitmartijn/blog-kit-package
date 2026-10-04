@@ -27,6 +27,13 @@ class PostInfolist
                 ]),
                 Section::make('Source')->columnSpan(['lg' => 1])->schema([
                     TextEntry::make('source')->badge()->formatStateUsing(fn (string $state) => $state === Post::SOURCE_LOCAL ? 'Local' : 'Marketing OS'),
+                    TextEntry::make('body_format')
+                        ->label('Body source')
+                        ->formatStateUsing(fn (string $state, Post $record) => match (true) {
+                            $state === Post::FORMAT_MARKDOWN => 'Markdown',
+                            $record->isFromMarketingOs() && ! $record->isLocked() => 'HTML from Marketing OS',
+                            default => 'HTML',
+                        }),
                     TextEntry::make('content_item_id')->label('Content item')->placeholder('—'),
                     TextEntry::make('product_id')->label('Product')->placeholder('—'),
                     TextEntry::make('locked_at')

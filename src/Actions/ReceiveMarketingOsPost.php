@@ -71,6 +71,8 @@ class ReceiveMarketingOsPost
             'meta_description' => $payload['meta_description'] ?? null,
             'excerpt' => $payload['excerpt'] ?? null,
             'featured_image' => $this->featuredImage($payload['featured_image'] ?? null),
+            // Deliveries are served exactly as Marketing OS rendered them.
+            'body_format' => Post::FORMAT_HTML,
             'body_html' => $payload['body_html'],
             'body_markdown' => $payload['body_markdown'] ?? null,
             'faq' => $payload['faq'] ?? null,

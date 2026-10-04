@@ -5,6 +5,7 @@ namespace Lostdomain\BlogKit;
 use Illuminate\Support\ServiceProvider;
 use Lostdomain\BlogKit\Console\InstallCommand;
 use Lostdomain\BlogKit\Services\HtmlSanitizer;
+use Lostdomain\BlogKit\Services\MarkdownRenderer;
 
 class BlogKitServiceProvider extends ServiceProvider
 {
@@ -13,6 +14,7 @@ class BlogKitServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/blog-kit.php', 'blog-kit');
 
         $this->app->singleton(HtmlSanitizer::class);
+        $this->app->singleton(MarkdownRenderer::class);
     }
 
     public function boot(): void

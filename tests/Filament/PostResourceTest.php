@@ -17,6 +17,7 @@ use Lostdomain\BlogKit\Jobs\ProcessPostImages;
 use Lostdomain\BlogKit\Jobs\PurgeBlogCache;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Redirect;
+use Lostdomain\BlogKit\Services\PostPublisher;
 use PHPUnit\Framework\Attributes\Test;
 
 class PostResourceTest extends FilamentTestCase
@@ -76,16 +77,17 @@ class PostResourceTest extends FilamentTestCase
     }
 
     #[Test]
-    public function a_local_post_can_be_created(): void
+    public function a_local_post_can_be_written_in_markdown(): void
     {
         $this->allowBlogKit();
 
         Livewire::test(CreatePost::class)
+            ->assertSchemaStateSet(['body_format' => Post::FORMAT_MARKDOWN])
             ->fillForm([
                 'title' => 'Written here',
                 'slug' => 'written-here',
                 'excerpt' => 'Local excerpt',
-                'body_html' => '<p>Hello from the admin.</p>',
+                'body_markdown' => "Hello from the admin.\n\n## Steps\n\n![Step 1](https://example.test/storage/blog/s1.png \"Open settings\")",
                 'published_at' => now()->subHour()->toDateTimeString(),
                 'tags' => ['Local'],
                 'faq' => [['question' => 'Q?', 'answer' => 'A.']],
@@ -95,6 +97,9 @@ class PostResourceTest extends FilamentTestCase
             ->assertHasNoFormErrors();
 
         $post = Post::sole();
+        $this->assertSame(Post::FORMAT_MARKDOWN, $post->body_format);
+        $this->assertStringContainsString('<h2 id="steps">Steps</h2>', $post->body_html);
+        $this->assertStringContainsString('<figcaption>Open settings</figcaption>', $post->body_html);
         $this->assertSame(Post::SOURCE_LOCAL, $post->source);
         $this->assertNull($post->content_item_id);
         $this->assertSame(['Local'], $post->tags->pluck('name')->all());
@@ -103,7 +108,126 @@ class PostResourceTest extends FilamentTestCase
         $this->assertFalse($post->isLocked());
         Queue::assertPushed(PurgeBlogCache::class);
 
-        $this->get('/blog/written-here')->assertOk()->assertSee('Hello from the admin.');
+        $this->get('/blog/written-here')
+            ->assertOk()
+            ->assertSee('Hello from the admin.')
+            ->assertSee('<figcaption>Open settings</figcaption>', false);
+    }
+
+    #[Test]
+    public function a_local_post_can_be_written_in_raw_html(): void
+    {
+        $this->allowBlogKit();
+
+        Livewire::test(CreatePost::class)
+            ->fillForm([
+                'title' => 'Raw',
+                'slug' => 'raw',
+                'body_format' => Post::FORMAT_HTML,
+                'body_html' => '<p class="lead">Hand-written HTML.</p>',
+                'published_at' => now()->subHour()->toDateTimeString(),
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $post = Post::sole();
+        $this->assertSame(Post::FORMAT_HTML, $post->body_format);
+        $this->assertSame('<p class="lead">Hand-written HTML.</p>', $post->body_html);
+    }
+
+    #[Test]
+    public function the_markdown_body_is_required_in_markdown_mode(): void
+    {
+        $this->allowBlogKit();
+
+        Livewire::test(CreatePost::class)
+            ->fillForm(['title' => 'X', 'slug' => 'x', 'body_markdown' => '', 'published_at' => now()->toDateTimeString()])
+            ->call('create')
+            ->assertHasFormErrors(['body_markdown' => 'required']);
+    }
+
+    #[Test]
+    public function the_preview_renders_the_markdown_as_the_page_will(): void
+    {
+        $this->allowBlogKit();
+
+        Livewire::test(CreatePost::class)
+            ->fillForm(['body_markdown' => "## Live preview\n\n<script>alert(1)</script>Safe"])
+            ->assertSeeHtml('<h2 id="live-preview">Live preview</h2>')
+            ->assertDontSeeHtml('<script>alert(1)</script>');
+    }
+
+    #[Test]
+    public function a_delivered_marketing_os_post_opens_in_markdown_and_saving_renders_from_it(): void
+    {
+        $this->allowBlogKit();
+        $this->postSigned($this->payload([
+            'body_html' => '<h2>Delivered</h2><p>As Marketing OS rendered it.</p>',
+            'body_markdown' => "## Delivered\n\nAs Marketing OS rendered it.",
+        ]));
+        $post = Post::sole();
+        $this->assertSame(Post::FORMAT_HTML, $post->body_format);
+
+        Livewire::test(EditPost::class, ['record' => $post->getRouteKey()])
+            ->assertSchemaStateSet(['body_format' => Post::FORMAT_MARKDOWN, 'body_markdown' => "## Delivered\n\nAs Marketing OS rendered it."])
+            ->fillForm(['body_markdown' => "## Delivered\n\nEdited in the admin."])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $post->refresh();
+        $this->assertSame(Post::FORMAT_MARKDOWN, $post->body_format);
+        $this->assertSame("<h2 id=\"delivered\">Delivered</h2>\n<p>Edited in the admin.</p>", $post->body_html);
+        $this->assertTrue($post->isLocked());
+    }
+
+    #[Test]
+    public function a_delivery_without_markdown_opens_in_html_mode(): void
+    {
+        $this->allowBlogKit();
+        $this->postSigned($this->payload(['body_markdown' => null]));
+
+        Livewire::test(EditPost::class, ['record' => Post::sole()->getRouteKey()])
+            ->assertSchemaStateSet(['body_format' => Post::FORMAT_HTML]);
+    }
+
+    #[Test]
+    public function a_post_saved_as_html_reopens_as_html_and_keeps_its_markdown_untouched(): void
+    {
+        $this->allowBlogKit();
+        $this->postSigned($this->payload(['body_markdown' => 'Original markdown']));
+        $post = Post::sole();
+
+        Livewire::test(EditPost::class, ['record' => $post->getRouteKey()])
+            ->fillForm(['body_format' => Post::FORMAT_HTML, 'body_html' => '<p>Hand-tuned HTML</p>'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $post->refresh();
+        $this->assertSame(Post::FORMAT_HTML, $post->body_format);
+        $this->assertSame('<p>Hand-tuned HTML</p>', $post->body_html);
+        $this->assertSame('Original markdown', $post->body_markdown);
+
+        Livewire::test(EditPost::class, ['record' => $post->getRouteKey()])
+            ->assertSchemaStateSet(['body_format' => Post::FORMAT_HTML, 'body_html' => '<p>Hand-tuned HTML</p>']);
+    }
+
+    #[Test]
+    public function a_marketing_os_update_after_releasing_the_lock_serves_its_html_again(): void
+    {
+        $this->allowBlogKit();
+        $this->postSigned($this->payload());
+        $post = Post::sole();
+
+        Livewire::test(EditPost::class, ['record' => $post->getRouteKey()])
+            ->fillForm(['body_markdown' => 'Local edit'])
+            ->call('save');
+        app(PostPublisher::class)->releaseLock($post->refresh());
+
+        $this->postSigned($this->payload(['body_html' => '<p>From Marketing OS again</p>']))->assertOk();
+
+        $post->refresh();
+        $this->assertSame(Post::FORMAT_HTML, $post->body_format);
+        $this->assertSame('<p>From Marketing OS again</p>', $post->body_html);
     }
 
     #[Test]

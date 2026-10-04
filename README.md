@@ -299,6 +299,20 @@ The section has **Posts** and **Redirects**:
 - **Actions**: view on site, retry images, purge cache, hide/restore, release lock, delete.
 - **Redirects**: add old slugs (useful when migrating) and remove them.
 
+**Writing and editing the body.** The editor works in **Markdown** by default, with a toolbar, image uploads (stored on the image disk) and a live preview using the article styles. On save, the HTML is rendered from the Markdown:
+
+- GitHub-flavoured Markdown, so tables, strikethrough and autolinks work.
+- Headings get ids for in-page links.
+- An image on its own line becomes a `<figure>`. `![alt](url "caption")` adds a caption, which is the same markup Marketing OS produces.
+
+How each kind of post opens in the editor:
+
+- **Marketing OS posts** are served exactly as delivered (`body_html`). Every delivery also carries its Markdown, so editing one opens that Markdown, and saving renders the HTML from it.
+- **HTML mode** is the escape hatch for markup Markdown can't express. A post saved in HTML mode reopens in HTML mode, and its Markdown is no longer kept in sync.
+- **A delivery without Markdown** opens in HTML mode.
+
+Marketing OS needs no changes for any of this. The API contract and delivered posts are unchanged until someone edits a post here.
+
 **Locking.** Editing a post that came from Marketing OS locks it. From then on Marketing OS `publish`/`update` deliveries for that post get **409** (`post_locked`), so your local edits are never silently overwritten and the conflict shows as a failed delivery in Marketing OS. `unpublish` still goes through. **Release lock** accepts updates again; the next update overwrites the local edits.
 
 **Hide vs unpublish.** *Hide* (admin) returns 404, a temporary takedown. *Unpublish* (Marketing OS) returns 410 Gone, which tells search engines the page is gone for good.
