@@ -266,7 +266,7 @@ Theme with variables on `.blog-kit`. The defaults are declared with zero specifi
 }
 ```
 
-Article bodies are styled through `.blog-kit-prose` (headings, lists, figures, tables, code), using the same variables.
+Article bodies are styled through `.blog-kit-prose`, using the same variables. It covers everything Markdown can produce: all heading levels, lists including nested and task lists, figures, tables, code, quotes, `kbd`, `mark` and details. The rules have zero specificity and aren't in a cascade layer. They win over Tailwind's preflight reset, and any plain rule in your own CSS wins over them. You don't need `@tailwindcss/typography` or a `.prose` class for blog posts.
 
 To change markup, publish the views and edit only the files you need:
 
@@ -308,8 +308,9 @@ The section has **Posts** and **Redirects**:
 How each kind of post opens in the editor:
 
 - **Marketing OS posts** are served exactly as delivered (`body_html`). Every delivery also carries its Markdown, so editing one opens that Markdown, and saving renders the HTML from it.
-- **HTML mode** is the escape hatch for markup Markdown can't express. A post saved in HTML mode reopens in HTML mode, and its Markdown is no longer kept in sync.
+- **HTML mode** is the escape hatch for markup Markdown can't express. A post saved in HTML mode reopens in HTML mode.
 - **A delivery without Markdown** opens in HTML mode.
+- **Switching modes converts the content**, so the editor is never empty. HTML → Markdown converts the current HTML; figures come back as `![alt](src "caption")`, and markup Markdown can't express stays as inline HTML. Markdown → HTML renders the current Markdown.
 
 Marketing OS needs no changes for any of this. The API contract and delivered posts are unchanged until someone edits a post here.
 

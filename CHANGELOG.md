@@ -4,6 +4,10 @@ All notable changes to `lostdomain/blog-kit` are documented here. The package fo
 
 ## Unreleased
 
+- Admin form: Content and Body are full width, with Publishing, Featured image and SEO side by side below them.
+- Switching a post between HTML and Markdown converts its content instead of showing an empty editor (league/html-to-markdown; figures round-trip with their captions).
+- Article styles cover every element Markdown produces (h1, h5, h6, nested and task lists, kbd, mark, details). Previously a Markdown `# Heading` rendered as plain text.
+
 - Fix: cache purges could leave paginated index and tag pages stale with spatie/laravel-responsecache 8.4.0, whose multi-URL `forget()` stops at the first URL that isn't cached. URLs are now forgotten one at a time.
 - Laravel 13 requires PHP 8.4 (via responsecache 8); documented and removed from the CI matrix for PHP 8.3.
 

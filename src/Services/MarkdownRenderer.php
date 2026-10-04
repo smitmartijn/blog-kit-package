@@ -31,8 +31,8 @@ class MarkdownRenderer
                 'apply_id_to_heading' => true,
                 'id_prefix' => '',
                 'fragment_prefix' => '',
-                'min_heading_level' => 2,
-                'max_heading_level' => 4,
+                'min_heading_level' => 1,
+                'max_heading_level' => 6,
             ],
         ]);
 

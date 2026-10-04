@@ -181,6 +181,43 @@ class PostResourceTest extends FilamentTestCase
     }
 
     #[Test]
+    public function switching_an_html_post_to_markdown_converts_its_content(): void
+    {
+        $this->allowBlogKit();
+        // An HTML-only post, like the ones delivered before Markdown editing existed.
+        $post = Post::factory()->create([
+            'body_html' => '<h2>Setup</h2><p>Install <strong>first</strong>.</p><figure><img src="https://example.test/storage/blog/a.png" alt="A"><figcaption>The app</figcaption></figure>',
+            'body_markdown' => null,
+        ]);
+
+        Livewire::test(EditPost::class, ['record' => $post->getRouteKey()])
+            ->assertSchemaStateSet(['body_format' => Post::FORMAT_HTML])
+            ->fillForm(['body_format' => Post::FORMAT_MARKDOWN])
+            ->assertSchemaStateSet([
+                'body_markdown' => "## Setup\n\nInstall **first**.\n\n![A](https://example.test/storage/blog/a.png \"The app\")",
+            ])
+            ->assertSeeHtml('<h2 id="setup">Setup</h2>')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $post->refresh();
+        $this->assertSame(Post::FORMAT_MARKDOWN, $post->body_format);
+        $this->assertStringContainsString('<p>Install <strong>first</strong>.</p>', $post->body_html);
+        $this->assertStringContainsString('<figcaption>The app</figcaption>', $post->body_html);
+    }
+
+    #[Test]
+    public function switching_markdown_to_html_renders_the_current_markdown(): void
+    {
+        $this->allowBlogKit();
+
+        Livewire::test(CreatePost::class)
+            ->fillForm(['body_markdown' => "## Hello\n\nWorld"])
+            ->fillForm(['body_format' => Post::FORMAT_HTML])
+            ->assertSchemaStateSet(['body_html' => "<h2 id=\"hello\">Hello</h2>\n<p>World</p>"]);
+    }
+
+    #[Test]
     public function a_delivery_without_markdown_opens_in_html_mode(): void
     {
         $this->allowBlogKit();

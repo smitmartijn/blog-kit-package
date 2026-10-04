@@ -78,6 +78,18 @@ class PublicPagesTest extends TestCase
     }
 
     #[Test]
+    public function article_styles_cover_every_heading_level(): void
+    {
+        Post::factory()->create(['slug' => 'styled', 'body_format' => Post::FORMAT_MARKDOWN, 'body_html' => '<h1 id="hi">hi</h1><p>bai</p>']);
+
+        $this->get('/blog/styled')
+            ->assertOk()
+            ->assertSee('<h1 id="hi">hi</h1>', false)
+            ->assertSee(':where(.blog-kit-prose) :where(h1, h2, h3, h4, h5, h6)', false)
+            ->assertSee(':where(.blog-kit-prose) :where(h1) { font-size', false);
+    }
+
+    #[Test]
     public function the_body_is_sanitized(): void
     {
         Post::factory()->create([

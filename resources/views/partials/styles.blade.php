@@ -22,15 +22,32 @@
 
     :where(.blog-kit-prose) { line-height: 1.75; font-size: 1.0625rem; overflow-wrap: break-word; }
     :where(.blog-kit-prose) > :where(* + *) { margin-top: 1.25em; }
-    :where(.blog-kit-prose) :where(h2, h3, h4) { font-family: var(--blog-kit-font-heading); color: var(--blog-kit-heading); font-weight: 700; line-height: 1.3; margin-top: 2em; scroll-margin-top: 6rem; }
+    :where(.blog-kit-prose) :where(h1, h2, h3, h4, h5, h6) { font-family: var(--blog-kit-font-heading); color: var(--blog-kit-heading); font-weight: 700; line-height: 1.3; margin-top: 2em; scroll-margin-top: 6rem; }
+    :where(.blog-kit-prose) > :where(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+    :where(.blog-kit-prose) :where(h1) { font-size: 1.9em; }
     :where(.blog-kit-prose) :where(h2) { font-size: 1.6em; }
     :where(.blog-kit-prose) :where(h3) { font-size: 1.3em; }
     :where(.blog-kit-prose) :where(h4) { font-size: 1.1em; }
+    :where(.blog-kit-prose) :where(h5, h6) { font-size: 1em; }
+    :where(.blog-kit-prose) :where(h6) { color: var(--blog-kit-muted); }
+    :where(.blog-kit-prose) :where(strong, b) { font-weight: 700; color: var(--blog-kit-heading); }
+    :where(.blog-kit-prose) :where(em, i) { font-style: italic; }
+    :where(.blog-kit-prose) :where(mark) { background: color-mix(in srgb, var(--blog-kit-accent) 25%, transparent); color: inherit; padding: 0 0.15em; }
+    :where(.blog-kit-prose) :where(kbd) { font-family: var(--blog-kit-font-mono); font-size: 0.85em; border: 1px solid var(--blog-kit-border); border-bottom-width: 2px; border-radius: 0.3em; padding: 0.1em 0.4em; }
+    :where(.blog-kit-prose) :where(sub, sup) { font-size: 0.75em; }
     :where(.blog-kit-prose) :where(a) { color: var(--blog-kit-accent); text-decoration: underline; text-underline-offset: 0.2em; }
     :where(.blog-kit-prose) :where(ul, ol) { padding-left: 1.5em; }
     :where(.blog-kit-prose) :where(ul) { list-style: disc; }
     :where(.blog-kit-prose) :where(ol) { list-style: decimal; }
     :where(.blog-kit-prose) :where(li + li) { margin-top: 0.4em; }
+    :where(.blog-kit-prose) :where(li > ul, li > ol) { margin-top: 0.4em; }
+    :where(.blog-kit-prose) :where(li > p + p) { margin-top: 0.75em; }
+    :where(.blog-kit-prose) :where(ul:has(> li > input[type="checkbox"])) { list-style: none; padding-left: 0.25em; }
+    :where(.blog-kit-prose) :where(li > input[type="checkbox"]) { margin-right: 0.5em; vertical-align: middle; }
+    :where(.blog-kit-prose) :where(dt) { font-weight: 700; color: var(--blog-kit-heading); }
+    :where(.blog-kit-prose) :where(dd) { margin-left: 1.5em; }
+    :where(.blog-kit-prose) :where(details) { border: 1px solid var(--blog-kit-border); border-radius: var(--blog-kit-radius); padding: 0.75em 1em; }
+    :where(.blog-kit-prose) :where(summary) { cursor: pointer; font-weight: 600; }
     :where(.blog-kit-prose) :where(img, video, picture) { max-width: 100%; height: auto; border-radius: var(--blog-kit-radius); }
     :where(.blog-kit-prose) :where(figure) { margin-block: 2em; }
     :where(.blog-kit-prose) :where(figcaption) { margin-top: 0.6em; font-size: 0.875em; color: var(--blog-kit-muted); text-align: center; }
