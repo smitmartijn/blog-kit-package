@@ -4,20 +4,31 @@
 
 It is deliberately only a blog: no page builder, no generic CMS.
 
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Installing with an agent](#installing-with-an-agent)
-- [Configuration](#configuration)
-- [Layout integration](#layout-integration)
-- [Theming and overriding views](#theming-and-overriding-views)
-- [Filament admin](#filament-admin)
-- [Marketing OS API (contract v1)](#marketing-os-api-contract-v1)
-- [Images](#images)
-- [Caching and Cloudflare](#caching-and-cloudflare)
-- [Feeds and sitemap](#feeds-and-sitemap)
-- [Migrating from Docusaurus](#migrating-from-docusaurus)
-- [Upgrading](#upgrading)
-- [Development](#development)
+- [Blog Kit](#blog-kit)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+  - [Installing with an agent](#installing-with-an-agent)
+    - [Ground rules](#ground-rules)
+    - [Phase 1: Check the host before changing anything](#phase-1-check-the-host-before-changing-anything)
+    - [Phase 2: Ask the human](#phase-2-ask-the-human)
+    - [Phase 3: Install](#phase-3-install)
+    - [Phase 4: Verify](#phase-4-verify)
+    - [Phase 5: Report and hand off](#phase-5-report-and-hand-off)
+  - [Configuration](#configuration)
+  - [Layout integration](#layout-integration)
+  - [Theming and overriding views](#theming-and-overriding-views)
+  - [Filament admin](#filament-admin)
+  - [Marketing OS API (contract v1)](#marketing-os-api-contract-v1)
+    - [Authentication](#authentication)
+    - [Body](#body)
+    - [Behaviour](#behaviour)
+    - [Responses](#responses)
+  - [Images](#images)
+  - [Caching and Cloudflare](#caching-and-cloudflare)
+  - [Feeds and sitemap](#feeds-and-sitemap)
+  - [Migrating from Docusaurus](#migrating-from-docusaurus)
+  - [Upgrading](#upgrading)
+  - [Development](#development)
 
 ## Requirements
 
@@ -33,7 +44,7 @@ Add the private repository and require the package:
 ```json
 // composer.json
 "repositories": [
-    { "type": "vcs", "url": "git@github.com:lostdomain/blog-kit.git" }
+    { "type": "vcs", "url": "https://github.com/smitmartijn/blog-kit-package" }
 ]
 ```
 
