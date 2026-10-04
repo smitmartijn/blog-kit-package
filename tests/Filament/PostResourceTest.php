@@ -4,6 +4,7 @@ namespace Lostdomain\BlogKit\Tests\Filament;
 
 use Filament\Actions\DeleteAction;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
@@ -370,6 +371,30 @@ class PostResourceTest extends FilamentTestCase
         Livewire::test(ViewPost::class, ['record' => $post->getRouteKey()])->callAction('purgeCache');
 
         Queue::assertPushed(PurgeBlogCache::class, fn (PurgeBlogCache $job) => in_array($post->url(), $job->urls, true));
+    }
+
+    #[Test]
+    public function without_a_queue_the_purge_button_and_saving_purge_after_the_response(): void
+    {
+        $this->allowBlogKit();
+        config([
+            'blog-kit.processing' => 'after_response',
+            'blog-kit.cloudflare.zone_id' => 'zone123',
+            'blog-kit.cloudflare.api_token' => 'cf-token',
+        ]);
+        Http::fake(['*' => Http::response(['success' => true])]);
+        $post = Post::factory()->local()->create(['slug' => 'no-worker']);
+
+        Livewire::test(ViewPost::class, ['record' => $post->getRouteKey()])->callAction('purgeCache');
+        Livewire::test(EditPost::class, ['record' => $post->getRouteKey()])
+            ->fillForm(['title' => 'Saved without a worker'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->app->terminate();
+
+        Queue::assertNothingPushed();
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) => in_array('https://example.test/blog/no-worker', $request['files'], true));
     }
 
     #[Test]

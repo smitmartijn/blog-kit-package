@@ -44,7 +44,7 @@ class PostActions
             ->visible(fn (Post $record) => in_array($record->images_status, [Post::IMAGES_FAILED, Post::IMAGES_PENDING], true))
             ->action(function (Post $record) {
                 app(PostPublisher::class)->retryImages($record);
-                Notification::make()->title('Image processing queued')->success()->send();
+                Notification::make()->title('Image processing started')->success()->send();
             });
     }
 
@@ -55,7 +55,7 @@ class PostActions
             ->icon(Heroicon::OutlinedBolt)
             ->action(function (Post $record) {
                 app(PostPublisher::class)->purge($record);
-                Notification::make()->title('Cache purge queued')->body('Local page cache and Cloudflare.')->success()->send();
+                Notification::make()->title('Cache purge started')->body('Local page cache and Cloudflare.')->success()->send();
             });
     }
 

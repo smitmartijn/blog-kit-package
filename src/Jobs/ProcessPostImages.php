@@ -9,6 +9,7 @@ use Lostdomain\BlogKit\Exceptions\ImageDownloadFailed;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Services\CacheUrls;
 use Lostdomain\BlogKit\Services\ImageLocalizer;
+use Lostdomain\BlogKit\Support\Background;
 use Throwable;
 
 /**
@@ -132,7 +133,7 @@ class ProcessPostImages implements ShouldQueue
             'stored' => count($map),
         ]);
 
-        PurgeBlogCache::dispatch($urls->forPost($post));
+        app(Background::class)->run(new PurgeBlogCache($urls->forPost($post)));
     }
 
     /** @param  array<string, string>  $failures */

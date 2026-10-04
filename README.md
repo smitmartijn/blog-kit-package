@@ -25,7 +25,8 @@ It is deliberately only a blog: no page builder, no generic CMS.
     - [Responses](#responses)
   - [Images](#images)
   - [Caching and Cloudflare](#caching-and-cloudflare)
-  - [Feeds and sitemap](#feeds-and-sitemap)
+  - [Background work](#background-work)
+- [Feeds and sitemap](#feeds-and-sitemap)
   - [Migrating from Docusaurus](#migrating-from-docusaurus)
   - [Upgrading](#upgrading)
   - [Development](#development)
@@ -33,7 +34,7 @@ It is deliberately only a blog: no page builder, no generic CMS.
 ## Requirements
 
 - PHP 8.2+ with Laravel 12, or PHP 8.4+ with Laravel 13. On Laravel 13 the package needs spatie/laravel-responsecache 8, which requires PHP 8.4.
-- A queue worker (Horizon / Redis): image downloads and cache purges are queued
+- No queue worker needed. Image downloads and cache purges run right after the response is sent, in the same PHP process. Sites with a worker (Horizon) can move them to the queue with `BLOG_KIT_PROCESSING=queue` (see [Background work](#background-work)).
 - A public disk for images (`public` or an S3/R2 disk with a public URL)
 - Optional: Filament 4 (4.12.6+) or 5 (5.7.6+) for the admin section; a Cloudflare zone for edge purges
 
@@ -93,7 +94,7 @@ Run these checks and **stop with a report** if any of them fails:
 | PHP / Laravel | `php -v`, `composer show laravel/framework` | PHP 8.2+ with Laravel 12, or PHP 8.4+ with Laravel 13. On Laravel 11 or older, or Laravel 13 on PHP 8.3, stop and report that an upgrade is needed |
 | Filament (only for the admin section) | `composer show filament/filament` | 4.12.6+ or 5.7.6+. On 3.x, or an older 4.x/5.x the host won't update, install without the plugin and report that a Filament upgrade is needed |
 | Route clash | `php artisan route:list --path=blog` | Nothing under `/blog` yet. If there is (an old blog, Docusaurus proxy, `Route::view`), ask before choosing another prefix or removing it |
-| Queue | `QUEUE_CONNECTION` in `.env`, Horizon in `composer.json` | Not `sync` in production. Image downloads and purges are queued jobs |
+| Background work | Is a queue worker running in production (Horizon in `composer.json`, a supervisor or Forge worker)? | Nothing required. With a worker you may set `BLOG_KIT_PROCESSING=queue`; without one, leave the default (`after_response`). **Never** set `queue` on a site without a worker: posts would stay stale and images would never download |
 | Layout | Find the public marketing layout in `resources/views` (often `layouts/app.blade.php` or `components/layouts/*`) | It must use `@yield` for the main content and title, and `@stack` in `<head>`. If it is a component layout (`{{ $slot }}`), see Phase 3 |
 | Tailwind | Find the CSS entry with `@import "tailwindcss"` (usually `resources/css/app.css`) | Tailwind v4 |
 
@@ -211,7 +212,9 @@ Everything lives in `config/blog-kit.php`. The most important keys:
 | `site_name`, `blog_title`, `blog_description`, `title_format` | | Titles and descriptions; `title_format` is `:title \| :site` |
 | `author.*`, `publisher.*` | | Used in JSON-LD, Open Graph and the byline |
 | `per_page`, `related_count`, `reading_words_per_minute` | `12`, `3`, `220` | Listing |
-| `images.*` | `public` disk, `blog/` | Disk, directory, queue, retries, max size |
+| `processing` | `after_response` | `after_response` (no worker needed) or `queue` (see [Background work](#background-work)) |
+| `after_response.attempts`, `after_response.backoff` | `3`, `[2, 5]` | Inline retries in `after_response` mode |
+| `images.*` | `public` disk, `blog/` | Disk, directory, max size; queue connection, queue name, tries and backoff in `queue` mode |
 | `cache.enabled`, `cache.lifetime`, `cache.cache_control` | `true`, 7 days, `public, max-age=300, s-maxage=86400, stale-while-revalidate=60` | Full-page cache and edge headers |
 | `cloudflare.zone_id`, `cloudflare.api_token` | — | Edge purge; skipped with a warning when missing |
 | `filament.gate` | `viewBlogKit` | Gate for the admin section |
@@ -391,11 +394,11 @@ For `unpublish`, only `schema_version`, `event`, `delivery_id`, `product_id`, `c
 | 409 | `{"error": "post_locked", ...}`: the post was edited locally |
 | 422 | `{"message": "...", "errors": {"field": ["..."]}}` |
 
-The API stores the post and queues the slow work (image downloads, purges), so it answers well within Marketing OS's 15 s timeout.
+The API stores the post and answers straight away. The slow work (image downloads, purges) runs after the response is sent, or on the queue, so it answers well within Marketing OS's 15 s timeout.
 
 ## Images
 
-After a post is saved, `ProcessPostImages` (queued) downloads:
+After a post is saved, `ProcessPostImages` runs in the background (see [Background work](#background-work)) and downloads:
 
 - the featured image
 - every `images[].url`
@@ -405,7 +408,7 @@ After a post is saved, `ProcessPostImages` (queued) downloads:
 Files go to `images.disk` under `images.directory/{hash-prefix}/{sha256}.{ext}`. The stored post is then rewritten to the local URLs. Until the job finishes, the original Marketing OS URLs are served.
 
 - Accepted types are JPEG, PNG, GIF, WebP and AVIF. SVG is refused because it can carry scripts. Responses over `images.max_bytes` fail.
-- A failure keeps the image on its original URL. The job records `image_error` on the post, logs `blog-kit.images.download_failed`, and throws so the queue retries with `images.backoff`. A retry only fetches what is still missing.
+- A failure keeps the image on its original URL. The job records `image_error` on the post, logs `blog-kit.images.download_failed`, and is retried (inline, or by the queue). A retry only fetches what is still missing.
 - When retries run out, the post gets `images_status = failed` and the error, the images that did download are rewritten, and `blog-kit.images.failed` is logged at error level. The admin shows the error and offers **Retry images**.
 - Each job is tied to the post's revision. If the post changed meanwhile, the newer job takes over.
 - Images already stored for a post are reused on later updates without downloading again.
@@ -428,9 +431,28 @@ Admin actions purge the same way.
 
 - When Cloudflare isn't configured, the purge is skipped and `blog-kit.cloudflare.purge_skipped` is logged as a warning.
 - Every request and response is logged (`blog-kit.cloudflare.purge_request` / `_response`) without the token.
-- Errors throw, so the job retries. Final failures are logged as `blog-kit.cache.purge_failed`.
+- Errors are retried. Final failures are logged as `blog-kit.cache.purge_failed`.
 
 **Cloudflare does not cache HTML by default.** Add a Cache Rule for `/blog*` with *Eligible for cache* and *Edge TTL: use cache-control header if present*. Create the API token with only the **Zone → Cache Purge** permission.
+
+## Background work
+
+Image downloads and cache purges are too slow to run while Marketing OS, or an editor in the admin, waits for a response. `BLOG_KIT_PROCESSING` decides where they run.
+
+| Mode | Where the work runs | Needs | Retries |
+| --- | --- | --- | --- |
+| `after_response` (default) | In the same PHP process, right after the response has been sent | Nothing | `after_response.attempts` (3), pausing `after_response.backoff` seconds (2, 5) |
+| `queue` | On `images.connection` / `images.queue` | A running queue worker | `images.tries` (5), with `images.backoff` up to 30 minutes |
+
+Notes on `after_response` mode:
+
+- **Responses stay fast.** Marketing OS gets its 200, and the admin page reloads, before any image is downloaded.
+- **URLs come from the real request.** Purges use the host of the request that triggered them, not `APP_URL`.
+- **Retries are short.** After the last attempt the post records the error. **Retry images** in the admin tries again.
+- **Where it runs immediately instead.** On the command line (Artisan, tinker) and inside other background work, it runs straight away.
+- **Rollbacks.** Work started inside a database transaction that rolls back never runs.
+
+Only use `queue` on sites that run a worker. Without one, the jobs wait in the queue forever: images never download, and cached pages are never purged.
 
 ## Feeds and sitemap
 

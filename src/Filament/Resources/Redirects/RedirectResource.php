@@ -20,6 +20,7 @@ use Lostdomain\BlogKit\Jobs\PurgeBlogCache;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Redirect;
 use Lostdomain\BlogKit\Services\CacheUrls;
+use Lostdomain\BlogKit\Support\Background;
 
 class RedirectResource extends Resource
 {
@@ -81,7 +82,7 @@ class RedirectResource extends Resource
 
     public static function purge(Redirect $redirect): void
     {
-        PurgeBlogCache::dispatch(app(CacheUrls::class)->forSlugs([$redirect->from_slug], []))->afterCommit();
+        app(Background::class)->run(new PurgeBlogCache(app(CacheUrls::class)->forSlugs([$redirect->from_slug], [])));
     }
 
     public static function getPages(): array

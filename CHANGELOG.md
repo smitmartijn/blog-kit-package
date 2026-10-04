@@ -4,6 +4,8 @@ All notable changes to `lostdomain/blog-kit` are documented here. The package fo
 
 ## Unreleased
 
+- **No queue worker needed.** Image downloads and cache purges now run right after the response is sent (`BLOG_KIT_PROCESSING=after_response`, the new default), with inline retries. `BLOG_KIT_PROCESSING=queue` keeps the previous queued behaviour for sites with a worker. Upgrading a site that relies on its queue: set `BLOG_KIT_PROCESSING=queue` to keep it.
+
 - Admin form: Content and Body are full width, with Publishing, Featured image and SEO side by side below them.
 - Switching a post between HTML and Markdown converts its content instead of showing an empty editor (league/html-to-markdown; figures round-trip with their captions).
 - Article styles cover every element Markdown produces (h1, h5, h6, nested and task lists, kbd, mark, details). Previously a Markdown `# Heading` rendered as plain text.

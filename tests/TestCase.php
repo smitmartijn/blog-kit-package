@@ -54,6 +54,8 @@ abstract class TestCase extends Orchestra
             'visibility' => 'public',
         ]);
 
+        // Most tests assert on dispatched jobs; BackgroundProcessingTest covers the default after_response mode.
+        $app['config']->set('blog-kit.processing', 'queue');
         $app['config']->set('blog-kit.api.token', self::TOKEN);
         $app['config']->set('blog-kit.api.signing_secret', self::SECRET);
         $app['config']->set('blog-kit.site_name', 'Example');

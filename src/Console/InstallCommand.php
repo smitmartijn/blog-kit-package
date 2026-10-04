@@ -38,7 +38,8 @@ class InstallCommand extends Command
         $this->newLine();
 
         $this->line('<options=bold>2. Database</>: php artisan migrate');
-        $this->line('<options=bold>3. Images</>: php artisan storage:link (public disk), and a queue worker (Horizon).');
+        $this->line('<options=bold>3. Images</>: php artisan storage:link (public disk). No queue worker needed;');
+        $this->line('   with one (Horizon), BLOG_KIT_PROCESSING=queue moves image downloads and purges to the queue.');
         $this->newLine();
 
         $this->line('<options=bold>4. Layout</>: your layout needs @yield(\''.config('blog-kit.sections.content').'\'), @yield(\''.config('blog-kit.sections.title').'\') in <title>, and @stack(\''.config('blog-kit.head_stack').'\') in <head>.');

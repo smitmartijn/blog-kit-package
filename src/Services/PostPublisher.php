@@ -12,6 +12,7 @@ use Lostdomain\BlogKit\Jobs\PurgeBlogCache;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Redirect;
 use Lostdomain\BlogKit\Models\Tag;
+use Lostdomain\BlogKit\Support\Background;
 
 /**
  * The single write path for posts, used by the API and the admin. Keeps
@@ -22,6 +23,7 @@ class PostPublisher
     public function __construct(
         private CacheUrls $urls,
         private ImageLocalizer $images,
+        private Background $background,
     ) {}
 
     /**
@@ -100,7 +102,7 @@ class PostPublisher
         $post->delete();
 
         Log::info('blog-kit.post.deleted', ['post_id' => $post->id, 'slug' => $post->slug]);
-        PurgeBlogCache::dispatch($urls)->afterCommit();
+        $this->background->run(new PurgeBlogCache($urls));
     }
 
     public function lock(Post $post, ?string $by): Post
@@ -123,14 +125,14 @@ class PostPublisher
     public function retryImages(Post $post): Post
     {
         $post->forceFill(['images_status' => Post::IMAGES_PENDING])->save();
-        ProcessPostImages::dispatch($post->id, $post->revision)->afterCommit();
+        $this->background->run(new ProcessPostImages($post->id, $post->revision));
 
         return $post;
     }
 
     public function purge(Post $post): void
     {
-        PurgeBlogCache::dispatch($this->urls->forPost($post))->afterCommit();
+        $this->background->run(new PurgeBlogCache($this->urls->forPost($post)));
     }
 
     public function assertSlugAvailable(Post $post): void
@@ -156,12 +158,12 @@ class PostPublisher
 
         if ($this->images->remoteUrls($post) !== []) {
             $post->forceFill(['images_status' => Post::IMAGES_PENDING])->save();
-            ProcessPostImages::dispatch($post->id, $post->revision)->afterCommit();
+            $this->background->run(new ProcessPostImages($post->id, $post->revision));
 
             // Pages the post just left can be purged now; its own pages are
             // purged once the images are local.
             if ($oldSlugs !== [] || $removedTags !== []) {
-                PurgeBlogCache::dispatch($this->urls->forSlugs($oldSlugs, $removedTags))->afterCommit();
+                $this->background->run(new PurgeBlogCache($this->urls->forSlugs($oldSlugs, $removedTags)));
             }
 
             return;
@@ -172,7 +174,7 @@ class PostPublisher
             'image_error' => null,
         ])->save();
 
-        PurgeBlogCache::dispatch($this->urls->forPost($post, $oldSlugs, $removedTags))->afterCommit();
+        $this->background->run(new PurgeBlogCache($this->urls->forPost($post, $oldSlugs, $removedTags)));
     }
 
     /** @param  list<string>  $names */

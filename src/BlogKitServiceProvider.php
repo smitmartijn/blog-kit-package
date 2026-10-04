@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Lostdomain\BlogKit\Console\InstallCommand;
 use Lostdomain\BlogKit\Services\HtmlSanitizer;
 use Lostdomain\BlogKit\Services\MarkdownRenderer;
+use Lostdomain\BlogKit\Support\Background;
 
 class BlogKitServiceProvider extends ServiceProvider
 {
@@ -15,6 +16,7 @@ class BlogKitServiceProvider extends ServiceProvider
 
         $this->app->singleton(HtmlSanitizer::class);
         $this->app->singleton(MarkdownRenderer::class);
+        $this->app->singleton(Background::class);
     }
 
     public function boot(): void

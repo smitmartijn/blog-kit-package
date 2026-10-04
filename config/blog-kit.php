@@ -107,12 +107,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Background work
+    |--------------------------------------------------------------------------
+    |
+    | Image downloads and cache purges are slow, so they never run while
+    | Marketing OS (or an editor) waits for the response.
+    |
+    | "after_response" (default) runs them in the same PHP process right after
+    | the response is sent: no queue worker needed. Failures retry inline
+    | (attempts, with backoff in seconds), then the post records the error.
+    |
+    | "queue" dispatches them to images.connection / images.queue for sites
+    | with a worker (Horizon); retries then follow images.tries/backoff.
+    |
+    */
+
+    'processing' => env('BLOG_KIT_PROCESSING', 'after_response'),
+
+    'after_response' => [
+        'attempts' => 3,
+        'backoff' => [2, 5],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Images
     |--------------------------------------------------------------------------
     |
     | Remote images (featured, images[] and inline in the body) are downloaded
-    | by a queued job onto this disk, and the stored post is rewritten to the
-    | local URLs. The disk must be public: Storage::disk()->url() is served.
+    | onto this disk in the background, and the stored post is rewritten to
+    | the local URLs. The disk must be public: Storage::disk()->url() is served.
+    | connection, queue, tries and backoff apply in "queue" processing mode.
     |
     */
 
