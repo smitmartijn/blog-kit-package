@@ -32,7 +32,7 @@ It is deliberately only a blog: no page builder, no generic CMS.
 
 ## Requirements
 
-- PHP 8.2+, Laravel 12 or 13 (Laravel 13 itself needs PHP 8.3+)
+- PHP 8.2+ with Laravel 12, or PHP 8.4+ with Laravel 13. On Laravel 13 the package needs spatie/laravel-responsecache 8, which requires PHP 8.4.
 - A queue worker (Horizon / Redis): image downloads and cache purges are queued
 - A public disk for images (`public` or an S3/R2 disk with a public URL)
 - Optional: Filament 4 (4.12.6+) or 5 (5.7.6+) for the admin section; a Cloudflare zone for edge purges
@@ -90,7 +90,7 @@ Run these checks and **stop with a report** if any of them fails:
 
 | Check | How | Required |
 | --- | --- | --- |
-| PHP / Laravel | `php -v`, `composer show laravel/framework` | PHP 8.2+, Laravel 12 or 13. On Laravel 11 or older, stop and report that an upgrade is needed |
+| PHP / Laravel | `php -v`, `composer show laravel/framework` | PHP 8.2+ with Laravel 12, or PHP 8.4+ with Laravel 13. On Laravel 11 or older, or Laravel 13 on PHP 8.3, stop and report that an upgrade is needed |
 | Filament (only for the admin section) | `composer show filament/filament` | 4.12.6+ or 5.7.6+. On 3.x, or an older 4.x/5.x the host won't update, install without the plugin and report that a Filament upgrade is needed |
 | Route clash | `php artisan route:list --path=blog` | Nothing under `/blog` yet. If there is (an old blog, Docusaurus proxy, `Route::view`), ask before choosing another prefix or removing it |
 | Queue | `QUEUE_CONNECTION` in `.env`, Horizon in `composer.json` | Not `sync` in production. Image downloads and purges are queued jobs |

@@ -23,10 +23,14 @@ class BlogCachePurger
             return;
         }
 
-        $this->responseCache->selectCachedItems()
-            ->usingSuffix(PublicBlogPage::CACHE_SUFFIX)
-            ->forUrls($urls)
-            ->forget();
+        // One URL per call: responsecache 8.4.0 stops a multi-URL forget()
+        // at the first URL that isn't cached.
+        foreach ($urls as $url) {
+            $this->responseCache->selectCachedItems()
+                ->usingSuffix(PublicBlogPage::CACHE_SUFFIX)
+                ->forUrls([$url])
+                ->forget();
+        }
 
         Log::info('blog-kit.cache.local_purged', ['url_count' => count($urls)]);
 

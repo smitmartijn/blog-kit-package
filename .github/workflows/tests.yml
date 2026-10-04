@@ -17,8 +17,11 @@ jobs:
         filament: ['4', '5']
         stability: [prefer-lowest, prefer-stable]
         exclude:
-          # Laravel 13 requires PHP 8.3.
+          # Laravel 13 needs PHP 8.4 here: responsecache 7 stops at Laravel 12,
+          # and responsecache 8 requires PHP 8.4.
           - php: '8.2'
+            laravel: '13'
+          - php: '8.3'
             laravel: '13'
         include:
           - laravel: '12'

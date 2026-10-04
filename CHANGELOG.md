@@ -4,6 +4,9 @@ All notable changes to `lostdomain/blog-kit` are documented here. The package fo
 
 ## Unreleased
 
+- Fix: cache purges could leave paginated index and tag pages stale with spatie/laravel-responsecache 8.4.0, whose multi-URL `forget()` stops at the first URL that isn't cached. URLs are now forgotten one at a time.
+- Laravel 13 requires PHP 8.4 (via responsecache 8); documented and removed from the CI matrix for PHP 8.3.
+
 - Admin editor writes posts in Markdown with a live preview and image uploads; HTML is rendered on save (GFM, heading ids, figures with captions). Marketing OS posts open in the Markdown they were delivered with. Raw HTML mode stays available per post.
 - New `body_format` column: run `php artisan migrate`.
 
