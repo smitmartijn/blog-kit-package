@@ -6,8 +6,11 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
+use Lostdomain\BlogKit\Jobs\PurgeBlogCache;
 use Lostdomain\BlogKit\Models\Post;
+use Lostdomain\BlogKit\Services\CacheUrls;
 use Lostdomain\BlogKit\Services\PostPublisher;
+use Lostdomain\BlogKit\Support\Background;
 
 /** Operational actions shared by the table, view and edit pages. */
 class PostActions
@@ -56,6 +59,23 @@ class PostActions
             ->action(function (Post $record) {
                 app(PostPublisher::class)->purge($record);
                 Notification::make()->title('Cache purge started')->body('Local page cache and Cloudflare.')->success()->send();
+            });
+    }
+
+    /** For the list page: every blog page, not one post's. */
+    public static function purgeAllCache(): Action
+    {
+        return Action::make('purgeAllCache')
+            ->label('Purge cache')
+            ->icon(Heroicon::OutlinedBolt)
+            ->color('gray')
+            ->requiresConfirmation()
+            ->modalHeading('Purge the whole blog cache?')
+            ->modalDescription('Every blog page is removed from the local page cache and Cloudflare. The next visitors rebuild them, so pages load a little slower for a moment.')
+            ->modalSubmitActionLabel('Purge everything')
+            ->action(function () {
+                app(Background::class)->run(new PurgeBlogCache(app(CacheUrls::class)->all()));
+                Notification::make()->title('Cache purge started')->body('Every blog page: local page cache and Cloudflare.')->success()->send();
             });
     }
 

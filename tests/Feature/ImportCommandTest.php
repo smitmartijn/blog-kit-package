@@ -5,10 +5,13 @@ namespace Lostdomain\BlogKit\Tests\Feature;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Lostdomain\BlogKit\Exceptions\CachePurgeFailed;
 use Lostdomain\BlogKit\Jobs\PurgeBlogCache;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Redirect;
+use Lostdomain\BlogKit\Services\BlogCachePurger;
 use Lostdomain\BlogKit\Tests\TestCase;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 
 class ImportCommandTest extends TestCase
@@ -184,11 +187,29 @@ class ImportCommandTest extends TestCase
     #[Test]
     public function the_whole_import_ends_with_one_cache_purge(): void
     {
-        $this->artisan('blog-kit:import', ['path' => self::DOCUSAURUS])->assertSuccessful();
+        $this->mock(BlogCachePurger::class, fn (MockInterface $purger) => $purger->shouldReceive('purge')->once()->withArgs(
+            fn (array $urls) => in_array('https://example.test/blog/dated-post', $urls, true)
+                && in_array('https://example.test/blog/custom-slug', $urls, true),
+        ));
 
-        Queue::assertPushed(PurgeBlogCache::class, 1);
-        Queue::assertPushed(PurgeBlogCache::class, fn (PurgeBlogCache $job) => in_array('https://example.test/blog/dated-post', $job->urls, true)
-            && in_array('https://example.test/blog/custom-slug', $job->urls, true));
+        $this->artisan('blog-kit:import', ['path' => self::DOCUSAURUS])
+            ->expectsOutputToContain('under https://example.test/blog')
+            ->assertSuccessful();
+
+        Queue::assertNotPushed(PurgeBlogCache::class);
+    }
+
+    #[Test]
+    public function a_failed_purge_is_reported_and_the_posts_stay_saved(): void
+    {
+        $this->mock(BlogCachePurger::class, fn (MockInterface $purger) => $purger->shouldReceive('purge')->once()->andThrow(new CachePurgeFailed('3 of 9 pages are still cached')));
+
+        $this->artisan('blog-kit:import', ['path' => self::DOCUSAURUS])
+            ->expectsOutputToContain('the cache purge failed: 3 of 9 pages are still cached')
+            ->expectsOutputToContain('php artisan blog-kit:purge')
+            ->assertFailed();
+
+        $this->assertSame(2, Post::count());
     }
 
     #[Test]

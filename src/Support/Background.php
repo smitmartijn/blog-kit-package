@@ -86,9 +86,10 @@ class Background
      * @template T
      *
      * @param  callable(): T  $callback
+     * @param  (callable(list<string>): void)|null  $purge  runs the purge itself instead of as background work
      * @return T
      */
-    public function collectPurges(callable $callback): mixed
+    public function collectPurges(callable $callback, ?callable $purge = null): mixed
     {
         $outer = $this->heldPurgeUrls;
         $this->heldPurgeUrls = [];
@@ -101,7 +102,7 @@ class Background
             $this->heldPurgeUrls = $outer;
 
             if ($urls !== []) {
-                $this->run(new PurgeBlogCache($urls));
+                $purge ? $purge($urls) : $this->run(new PurgeBlogCache($urls));
             }
         }
     }

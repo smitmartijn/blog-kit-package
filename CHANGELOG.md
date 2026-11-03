@@ -4,6 +4,10 @@ All notable changes to `lostdomain/blog-kit` are documented here. The package fo
 
 ## Unreleased
 
+- `blog-kit:purge` and a **Purge cache** button above the admin post list purge every blog page, leaving the rest of the cache alone.
+- Fix: a purge could report success while pages stayed cached, for example when the command-line user can't write to the web server's cache files. It now checks, logs `blog-kit.cache.local_purge_failed` and fails. `blog-kit:import` reports a failed purge and exits with an error.
+- Fix: `/blog/x/` had its own cache entry that purges never reached. It now shares the entry of `/blog/x`, and both are purged from Cloudflare (so Cloudflare receives about twice as many URLs per purge).
+
 - Fix: switching a post from HTML to Markdown put stray backslashes in image captions containing a double quote. Requires league/html-to-markdown 5.2.3 or newer, which escapes image titles itself and includes its security fixes.
 
 - `blog-kit:import`: one-time import of a Docusaurus or VuePress blog: posts as local Markdown posts, local images copied to the image disk, old URLs kept as slugs or redirected (301). Supports `--dry-run`, `--update` and `--clean-slugs`.

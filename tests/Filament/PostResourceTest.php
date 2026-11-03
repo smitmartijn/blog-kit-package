@@ -51,6 +51,24 @@ class PostResourceTest extends FilamentTestCase
     }
 
     #[Test]
+    public function the_list_page_button_purges_every_blog_page(): void
+    {
+        $this->allowBlogKit();
+        Post::factory()->create(['slug' => 'first']);
+        Post::factory()->create(['slug' => 'second']);
+
+        Livewire::test(ListPosts::class)
+            ->assertActionExists('purgeAllCache')
+            ->callAction('purgeAllCache')
+            ->assertNotified();
+
+        Queue::assertPushed(PurgeBlogCache::class, 1);
+        Queue::assertPushed(PurgeBlogCache::class, fn (PurgeBlogCache $job) => in_array('https://example.test/blog/first', $job->urls, true)
+            && in_array('https://example.test/blog/second', $job->urls, true)
+            && in_array('https://example.test/blog', $job->urls, true));
+    }
+
+    #[Test]
     public function the_list_shows_posts_with_their_status(): void
     {
         $this->allowBlogKit();

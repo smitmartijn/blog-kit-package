@@ -11,6 +11,7 @@ use Lostdomain\BlogKit\Import\StaticSite;
 use Lostdomain\BlogKit\Import\StaticSiteReader;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Redirect;
+use Lostdomain\BlogKit\Services\BlogCachePurger;
 use Lostdomain\BlogKit\Services\MarkdownRenderer;
 use Lostdomain\BlogKit\Services\PostPublisher;
 use Lostdomain\BlogKit\Support\Background;
@@ -34,7 +35,7 @@ class ImportCommand extends Command
     /** Stored in last_delivery_id, so --update can tell imported posts apart. */
     private const MARKER = 'import:';
 
-    public function handle(StaticSiteReader $reader, MarkdownRenderer $renderer, PostPublisher $publisher, Background $background): int
+    public function handle(StaticSiteReader $reader, MarkdownRenderer $renderer, PostPublisher $publisher, Background $background, BlogCachePurger $purger): int
     {
         $dryRun = (bool) $this->option('dry-run');
 
@@ -71,10 +72,28 @@ class ImportCommand extends Command
             }
         };
 
-        // One cache purge for the whole import instead of one per post.
-        $dryRun ? $work() : $background->collectPurges($work);
+        $purgeError = null;
+
+        // One cache purge for the whole import instead of one per post. Run
+        // here rather than as background work, so a failure shows.
+        $dryRun ? $work() : $background->collectPurges($work, function (array $urls) use ($purger, &$purgeError) {
+            $this->components->info(sprintf('Purging %d URLs under %s', count($urls), route('blog-kit.index')));
+
+            try {
+                $purger->purge($urls);
+            } catch (Throwable $exception) {
+                $purgeError = $exception->getMessage();
+            }
+        });
 
         $this->report($site, $rows, $dryRun);
+
+        if ($purgeError !== null) {
+            $this->components->error("The posts were saved, but the cache purge failed: {$purgeError}");
+            $this->line('  Pages may show old content. Fix this, then run: php artisan blog-kit:purge');
+
+            return self::FAILURE;
+        }
 
         return collect($rows)->contains('status', 'failed') ? self::FAILURE : self::SUCCESS;
     }

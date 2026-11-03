@@ -3,6 +3,7 @@
 namespace Lostdomain\BlogKit\Services;
 
 use Lostdomain\BlogKit\Models\Post;
+use Lostdomain\BlogKit\Models\Redirect;
 use Lostdomain\BlogKit\Models\Tag;
 
 /**
@@ -12,6 +13,19 @@ use Lostdomain\BlogKit\Models\Tag;
  */
 class CacheUrls
 {
+    /**
+     * Every public URL of the blog.
+     *
+     * @return list<string>
+     */
+    public function all(): array
+    {
+        return $this->forSlugs(
+            [...Post::pluck('slug')->all(), ...Redirect::pluck('from_slug')->all()],
+            Tag::pluck('slug')->all(),
+        );
+    }
+
     /**
      * @param  list<string>  $extraSlugs  slugs the post no longer answers to (e.g. before a rename)
      * @param  list<string>  $extraTagSlugs  tags the post was removed from

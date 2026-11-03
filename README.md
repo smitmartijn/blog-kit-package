@@ -299,7 +299,7 @@ The section has **Posts** and **Redirects**:
 - **List and view posts**: status (live / hidden / unpublished), source, image status with per-image errors, lock state and redirects.
 - **Create posts locally.** Local posts are not tied to Marketing OS, and the API never touches them.
 - **Edit any post.** Slug changes keep a 301. Remote image URLs in the body are downloaded after saving.
-- **Actions**: view on site, retry images, purge cache, hide/restore, release lock, delete.
+- **Actions**: view on site, retry images, purge cache, hide/restore, release lock, delete. The **Purge cache** button above the post list purges every blog page.
 - **Redirects**: add old slugs (useful when migrating) and remove them.
 
 **Writing and editing the body.** The editor works in **Markdown** by default, with a toolbar, image uploads (stored on the image disk) and a live preview using the article styles. On save, the HTML is rendered from the Markdown:
@@ -429,6 +429,16 @@ After a publish, update or unpublish (and after images are processed), `PurgeBlo
 
 Admin actions purge the same way.
 
+To purge every blog page, use the **Purge cache** button above the post list, or:
+
+```bash
+php artisan blog-kit:purge
+```
+
+The command runs immediately, prints the URL it purges under, and exits with an error if the purge fails. It leaves the rest of the cache alone, unlike `responsecache:clear`, which empties the whole cache store when no response cache tag is set. `responsecache:clear --url=` doesn't work on blog pages.
+
+- `/blog/x` and `/blog/x/` share one local cache entry. Both are purged from Cloudflare, which caches them separately.
+- After forgetting pages, the purge checks they're really gone. The file store otherwise fails silently when the command-line user can't write to files the web server created. A failure is logged as `blog-kit.cache.local_purge_failed` and retried, and Cloudflare isn't purged until it's resolved. Run commands as the web server's user, or use Redis.
 - When Cloudflare isn't configured, the purge is skipped and `blog-kit.cloudflare.purge_skipped` is logged as a warning.
 - Every request and response is logged (`blog-kit.cloudflare.purge_request` / `_response`) without the token.
 - Errors are retried. Final failures are logged as `blog-kit.cache.purge_failed`.
@@ -511,7 +521,7 @@ What it does:
   - `--clean-slugs` drops the date from slugs (`2024-06-07-name` → `name`) and redirects the old URLs.
 - **Re-running is safe.**
   - Posts that already exist are skipped. `--update` overwrites them, but only posts this command imported, never hand-written or Marketing OS posts.
-  - The cache is purged once, at the end.
+  - The cache is purged once, at the end. If that fails, the command says so and exits with an error; the posts stay saved, and `blog-kit:purge` retries the purge.
 
 **Feeds** keep the Docusaurus paths `rss.xml` and `atom.xml`, so existing subscribers keep working. If the old blog lived somewhere other than under `BLOG_KIT_PREFIX` (for example at the site root), the command warns you: those old URLs need a redirect in your web server.
 

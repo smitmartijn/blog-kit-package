@@ -5,9 +5,12 @@ namespace Lostdomain\BlogKit;
 use Illuminate\Support\ServiceProvider;
 use Lostdomain\BlogKit\Console\ImportCommand;
 use Lostdomain\BlogKit\Console\InstallCommand;
+use Lostdomain\BlogKit\Console\PurgeCommand;
 use Lostdomain\BlogKit\Services\HtmlSanitizer;
 use Lostdomain\BlogKit\Services\MarkdownRenderer;
 use Lostdomain\BlogKit\Support\Background;
+use Lostdomain\BlogKit\Support\SlashInsensitiveHasher;
+use Spatie\ResponseCache\Hasher\RequestHasher;
 
 class BlogKitServiceProvider extends ServiceProvider
 {
@@ -18,6 +21,7 @@ class BlogKitServiceProvider extends ServiceProvider
         $this->app->singleton(HtmlSanitizer::class);
         $this->app->singleton(MarkdownRenderer::class);
         $this->app->singleton(Background::class);
+        $this->app->extend(RequestHasher::class, fn (RequestHasher $hasher) => new SlashInsensitiveHasher($hasher));
     }
 
     public function boot(): void
@@ -35,7 +39,7 @@ class BlogKitServiceProvider extends ServiceProvider
                 __DIR__.'/../resources/views' => resource_path('views/vendor/blog-kit'),
             ], 'blog-kit-views');
 
-            $this->commands([InstallCommand::class, ImportCommand::class]);
+            $this->commands([InstallCommand::class, ImportCommand::class, PurgeCommand::class]);
         }
     }
 }
