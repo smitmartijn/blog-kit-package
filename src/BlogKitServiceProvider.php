@@ -3,6 +3,7 @@
 namespace Lostdomain\BlogKit;
 
 use Illuminate\Support\ServiceProvider;
+use Lostdomain\BlogKit\Console\ImportCommand;
 use Lostdomain\BlogKit\Console\InstallCommand;
 use Lostdomain\BlogKit\Services\HtmlSanitizer;
 use Lostdomain\BlogKit\Services\MarkdownRenderer;
@@ -34,7 +35,7 @@ class BlogKitServiceProvider extends ServiceProvider
                 __DIR__.'/../resources/views' => resource_path('views/vendor/blog-kit'),
             ], 'blog-kit-views');
 
-            $this->commands([InstallCommand::class]);
+            $this->commands([InstallCommand::class, ImportCommand::class]);
         }
     }
 }

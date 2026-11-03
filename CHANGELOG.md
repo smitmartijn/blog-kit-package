@@ -4,6 +4,9 @@ All notable changes to `lostdomain/blog-kit` are documented here. The package fo
 
 ## Unreleased
 
+- `blog-kit:import`: one-time import of a Docusaurus or VuePress blog: posts as local Markdown posts, local images copied to the image disk, old URLs kept as slugs or redirected (301). Supports `--dry-run`, `--update` and `--clean-slugs`.
+- Old URLs that aren't valid slugs (dated Docusaurus paths, dots, `.html`) now resolve through the redirect table; `/blog/tags/x` and `/blog/page/n` redirect to their Blog Kit equivalents.
+
 - **No queue worker needed.** Image downloads and cache purges now run right after the response is sent (`BLOG_KIT_PROCESSING=after_response`, the new default), with inline retries. `BLOG_KIT_PROCESSING=queue` keeps the previous queued behaviour for sites with a worker. Upgrading a site that relies on its queue: set `BLOG_KIT_PROCESSING=queue` to keep it.
 
 - Admin form: Content and Body are full width, with Publishing, Featured image and SEO side by side below them.

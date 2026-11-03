@@ -34,8 +34,11 @@ class CacheUrls
     {
         $urls = [];
 
+        // Appended rather than route()d: imported legacy paths contain / and . .
+        $base = route('blog-kit.index');
+
         foreach (array_unique($slugs) as $slug) {
-            $urls[] = route('blog-kit.show', $slug);
+            $urls[] = $base.'/'.$slug;
         }
 
         $urls = [...$urls, ...$this->indexUrls()];

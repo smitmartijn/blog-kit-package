@@ -27,7 +27,7 @@ It is deliberately only a blog: no page builder, no generic CMS.
   - [Caching and Cloudflare](#caching-and-cloudflare)
   - [Background work](#background-work)
 - [Feeds and sitemap](#feeds-and-sitemap)
-  - [Migrating from Docusaurus](#migrating-from-docusaurus)
+  - [Importing a Docusaurus or VuePress blog](#importing-a-docusaurus-or-vuepress-blog)
   - [Upgrading](#upgrading)
   - [Development](#development)
 
@@ -190,7 +190,7 @@ Hand these items to the human, because an agent shouldn't do them:
   - then use its "test" button, which sends a `_test` delivery
 - **Cloudflare.** Add a Cache Rule for `/blog*` that caches HTML and respects origin `Cache-Control`, and set the zone id and API token (see [Caching and Cloudflare](#caching-and-cloudflare)).
 - **Search Console.** Submit `https://<domain>/blog/sitemap.xml`, or the host's sitemap index if the blog was merged into it.
-- **Migrations from another blog.** For example Docusaurus: list the old URLs that need redirects (see [Migrating from Docusaurus](#migrating-from-docusaurus)).
+- **Migrations from another blog.** For example Docusaurus: list the old URLs that need redirects (see [Importing a Docusaurus or VuePress blog](#importing-a-docusaurus-or-vuepress-blog)).
 
 Propose commit messages (Conventional Commits) for the changes, without committing.
 
@@ -472,13 +472,48 @@ SitemapIndex::create()->add('/sitemap-pages.xml')->add(BlogKit::sitemapIndexEntr
 Sitemap::create()->add($pages)->add(BlogKit::sitemapTags());
 ```
 
-## Migrating from Docusaurus
+## Importing a Docusaurus or VuePress blog
 
-MuteDeck and WhatPulse keep their URLs:
+`blog-kit:import` copies an existing static blog into Blog Kit, once. Run it on the server, where the site's database and image disk are:
 
-- **Articles** stay at `/blog/{slug}`. Imported posts must keep their Docusaurus slugs (Marketing OS sends the slug).
-- **Feeds** keep the Docusaurus paths `rss.xml` and `atom.xml`, so existing subscribers keep working.
-- **Changed URLs**, such as dated paths or `/blog/tags/x`, can be mapped in the **Redirects** admin, or with host routes for paths that aren't a single slug.
+```bash
+# Put the old site's source on the server, e.g. a checkout of its repository
+git clone git@github.com:you/old-blog.git /tmp/old-blog
+
+php artisan blog-kit:import /tmp/old-blog --dry-run   # read and check everything, write nothing
+php artisan blog-kit:import /tmp/old-blog             # import
+php artisan blog-kit:import /tmp/old-blog -v          # also list every post and every skipped file
+```
+
+Point it at the site's root folder, the one with `docusaurus.config.js` or `.vuepress/`, or directly at a Docusaurus `blog/` folder. It detects the format.
+
+What it does:
+
+- **Posts** become local Markdown posts, editable in the admin.
+  - Title, date, description, tags and featured image come from the front matter, falling back to the file name for dates.
+  - Docusaurus `tags.yml` labels are used, and VuePress `category` is added as a tag.
+  - Drafts, `_partials` and dateless VuePress pages (index, archive) are skipped.
+- **The Markdown is cleaned up.** Code blocks are never touched.
+  - MDX imports, `{/* comments */}` and components (`<Tabs>`, `<CTAButton />`) are removed. Text inside components is kept, and the summary lists every post that had components.
+  - `:::tip` admonitions and VuePress containers become quotes.
+  - `<!-- truncate -->` / `<!-- more -->` are removed. The text before them becomes the excerpt when there's no description.
+  - A leading `# Title` is dropped, because the page shows the title.
+- **Local images are copied to the image disk** and the Markdown points at the copies.
+  - Covered: relative paths, `/img/…` from `static/`, `/blog/images/…` from `.vuepress/public`, `require()` in MDX and `srcset`.
+  - Identical files are stored once.
+  - Remote images are downloaded afterwards like any other post's.
+  - Missing files are listed in the summary and left as they were.
+- **Old URLs keep working:**
+  - **VuePress:** the folder name was the URL (`/blog/2024-06-07-name/`), so it becomes the slug unchanged.
+  - **Docusaurus:** the `slug` front matter is used as is. A dated URL (`/blog/2024/06/07/name`) becomes slug `name`, and the dated URL 301-redirects to it.
+  - **Old URLs that aren't valid slugs**, such as dots or `.html`, get a cleaned-up slug plus a 301 from the old URL.
+  - **Other old pages:** `/blog/tags/x` redirects to `/blog/tag/x`, and `/blog/page/2` to `/blog?page=2`.
+  - `--clean-slugs` drops the date from slugs (`2024-06-07-name` → `name`) and redirects the old URLs.
+- **Re-running is safe.**
+  - Posts that already exist are skipped. `--update` overwrites them, but only posts this command imported, never hand-written or Marketing OS posts.
+  - The cache is purged once, at the end.
+
+**Feeds** keep the Docusaurus paths `rss.xml` and `atom.xml`, so existing subscribers keep working. If the old blog lived somewhere other than under `BLOG_KIT_PREFIX` (for example at the site root), the command warns you: those old URLs need a redirect in your web server.
 
 ## Upgrading
 

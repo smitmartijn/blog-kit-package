@@ -1,0 +1,29 @@
+---
+title: Folder post
+slug: custom-slug
+date: 2024-02-03T10:00:00Z
+description: Written in MDX.
+tags:
+  - how-to
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Folder post
+
+{/* an MDX comment */}
+
+<Tabs>
+<TabItem value="mac" label="macOS">
+
+Press **Cmd**.
+
+</TabItem>
+</Tabs>
+
+![A diagram](./diagram.png "The diagram")
+
+<img src={require('./diagram.png').default} alt="Inline" />
+
+![Missing](./missing.png)

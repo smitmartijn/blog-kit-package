@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Lostdomain\BlogKit\Jobs\PurgeBlogCache;
 use Throwable;
 
 /**
@@ -27,6 +28,9 @@ class Background
 
     private bool $running = false;
 
+    /** @var list<string>|null URLs of purges held back by collectPurges() */
+    private ?array $heldPurgeUrls = null;
+
     public function __construct(private Application $app) {}
 
     public function mode(): string
@@ -42,6 +46,12 @@ class Background
 
     public function run(ShouldQueue $job): void
     {
+        if ($this->heldPurgeUrls !== null && $job instanceof PurgeBlogCache) {
+            $this->heldPurgeUrls = [...$this->heldPurgeUrls, ...$job->urls];
+
+            return;
+        }
+
         if ($this->mode() === self::QUEUE) {
             dispatch($job)->afterCommit();
 
@@ -67,6 +77,33 @@ class Background
                 }
             });
         });
+    }
+
+    /**
+     * Holds back every cache purge started inside the callback and runs them
+     * as one purge afterwards. For bulk work such as an import.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    public function collectPurges(callable $callback): mixed
+    {
+        $outer = $this->heldPurgeUrls;
+        $this->heldPurgeUrls = [];
+
+        try {
+            return $callback();
+        } finally {
+            // Also after a failure: whatever was written still needs purging.
+            $urls = array_values(array_unique($this->heldPurgeUrls));
+            $this->heldPurgeUrls = $outer;
+
+            if ($urls !== []) {
+                $this->run(new PurgeBlogCache($urls));
+            }
+        }
     }
 
     /** Runs the job with inline retries; after the last attempt, its failed() handler. */

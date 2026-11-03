@@ -18,7 +18,8 @@
         "spatie/laravel-responsecache": "^7.6|^8.4",
         "spatie/laravel-sitemap": "^7.3|^8.2",
         "spatie/schema-org": "^3.23|^5.0",
-        "symfony/html-sanitizer": "^7.1|^8.1"
+        "symfony/html-sanitizer": "^7.1|^8.1",
+        "symfony/yaml": "^6.4|^7.0|^8.0"
     },
     "require-dev": {
         "filament/filament": "^4.12.6|^5.7.6",
