@@ -90,8 +90,7 @@ class HtmlToMarkdown
             $replacement->setAttribute('alt', $image->getAttribute('alt'));
 
             if ($title !== '' || $image->getAttribute('title') !== '') {
-                // The converter writes titles unescaped inside "…".
-                $replacement->setAttribute('title', str_replace('"', '\\"', $title !== '' ? $title : $image->getAttribute('title')));
+                $replacement->setAttribute('title', $title !== '' ? $title : $image->getAttribute('title'));
             }
 
             $paragraph = $document->createElement('p');

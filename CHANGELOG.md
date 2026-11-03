@@ -4,6 +4,8 @@ All notable changes to `lostdomain/blog-kit` are documented here. The package fo
 
 ## Unreleased
 
+- Fix: switching a post from HTML to Markdown put stray backslashes in image captions containing a double quote. Requires league/html-to-markdown 5.2.3 or newer, which escapes image titles itself and includes its security fixes.
+
 - `blog-kit:import`: one-time import of a Docusaurus or VuePress blog: posts as local Markdown posts, local images copied to the image disk, old URLs kept as slugs or redirected (301). Supports `--dry-run`, `--update` and `--clean-slugs`.
 - Old URLs that aren't valid slugs (dated Docusaurus paths, dots, `.html`) now resolve through the redirect table; `/blog/tags/x` and `/blog/page/n` redirect to their Blog Kit equivalents.
 

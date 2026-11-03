@@ -30,7 +30,18 @@ class HtmlToMarkdownTest extends TestCase
     {
         $markdown = $this->convert('<figure class="article-figure" data-slot="step-1"><img src="https://cdn.test/a.png?w=1&amp;h=2" alt="Step 1" loading="lazy"><figcaption>Open "settings"</figcaption></figure>');
 
-        $this->assertSame('![Step 1](https://cdn.test/a.png?w=1&h=2 "Open \"settings\"")', $markdown);
+        $this->assertSame('![Step 1](https://cdn.test/a.png?w=1&h=2 "Open &quot;settings&quot;")', $markdown);
+    }
+
+    #[Test]
+    public function special_characters_in_a_caption_survive_a_round_trip(): void
+    {
+        $markdown = $this->convert('<figure><img src="https://cdn.test/a.png" alt="Step 1"><figcaption>Open "settings" &amp; use C:\temp\*_x_</figcaption></figure>');
+
+        $this->assertStringContainsString(
+            '<figcaption>Open &quot;settings&quot; &amp; use C:\temp\*_x_</figcaption>',
+            app(MarkdownRenderer::class)->toHtml($markdown),
+        );
     }
 
     #[Test]
