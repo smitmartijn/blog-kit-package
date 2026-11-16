@@ -28,7 +28,8 @@ class ImportCommand extends Command
         {path : The Docusaurus or VuePress site (or its blog folder)}
         {--dry-run : Read and check everything, write nothing}
         {--update : Overwrite posts that were imported before (same slug)}
-        {--clean-slugs : Drop the date from slugs (2024-06-07-name → name); the old URLs redirect}';
+        {--clean-slugs : Drop the date from slugs (2024-06-07-name → name); the old URLs redirect}
+        {--base-url= : The old site\'s base URL (e.g. /blog/) when its config reads it from an environment variable}';
 
     protected $description = 'Import a Docusaurus or VuePress blog into Blog Kit';
 
@@ -40,7 +41,7 @@ class ImportCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
 
         try {
-            $site = $reader->read((string) $this->argument('path'));
+            $site = $reader->read((string) $this->argument('path'), $this->option('base-url') ?: null);
         } catch (Throwable $exception) {
             $this->components->error($exception->getMessage());
 

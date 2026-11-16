@@ -49,6 +49,7 @@
     :where(.blog-kit-prose) :where(details) { border: 1px solid var(--blog-kit-border); border-radius: var(--blog-kit-radius); padding: 0.75em 1em; }
     :where(.blog-kit-prose) :where(summary) { cursor: pointer; font-weight: 600; }
     :where(.blog-kit-prose) :where(img, video, picture) { max-width: 100%; height: auto; border-radius: var(--blog-kit-radius); }
+    :where(.blog-kit-prose) :where(iframe) { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0; border-radius: var(--blog-kit-radius); margin-block: 2em; }
     :where(.blog-kit-prose) :where(figure) { margin-block: 2em; }
     :where(.blog-kit-prose) :where(figcaption) { margin-top: 0.6em; font-size: 0.875em; color: var(--blog-kit-muted); text-align: center; }
     :where(.blog-kit-prose) :where(blockquote) { border-left: 3px solid var(--blog-kit-accent); padding-left: 1em; color: var(--blog-kit-muted); font-style: italic; }

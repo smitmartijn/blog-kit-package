@@ -156,6 +156,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Embeds
+    |--------------------------------------------------------------------------
+    |
+    | Iframes in a post body are kept only when their src is https on one of
+    | these hosts (matched exactly); every other iframe is removed. An empty
+    | list removes all iframes.
+    |
+    */
+
+    'embeds' => [
+        'hosts' => [
+            'www.youtube.com',
+            'youtube.com',
+            'www.youtube-nocookie.com',
+            'player.vimeo.com',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Caching
     |--------------------------------------------------------------------------
     |

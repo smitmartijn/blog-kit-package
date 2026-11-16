@@ -4,6 +4,13 @@ All notable changes to `lostdomain/blog-kit` are documented here. The package fo
 
 ## Unreleased
 
+- **Video embeds.** YouTube and Vimeo iframes in a post body are kept (`blog-kit.embeds.hosts`, https only, exact host match); every other iframe is removed. Markdown no longer escapes `<iframe>`, so embeds written in Markdown or imported from Docusaurus render. Published configs get the default host list automatically.
+- `blog-kit:import` copies local videos and audio (`<video>`, `<audio>`, `<source>` and `poster`) as well as images, and rewrites every media attribute in a tag instead of the first.
+- `blog-kit:import --base-url=/blog/` for Docusaurus and VuePress configs that read the base URL from an environment variable, so static files referenced with it are found.
+- Fix: a Docusaurus blog at the site root (`routeBasePath: '/'`) was reported as served under `//`.
+- Fix: in apps with Filament, post bodies were sanitized with Filament's `HtmlSanitizerConfig` (bound in the container) instead of Blog Kit's rules.
+- Fix: Redirects in global search showed unfiltered rows; they now have `from_slug` as record title.
+
 - **Multiple authors.** Authors have their own page (`/blog/author/{slug}`) with photo, role, bio, website and social profiles, managed under **Authors** in Filament. Posts get an author picker; bylines link to the author page, articles end with an "About the author" box, and cards show the author. JSON-LD `author` is now a full `Person` (author page, `sameAs` profiles), author pages emit `ProfilePage`, and an X profile adds `twitter:creator`. Author pages are in the sitemap and purged with their posts.
 - **Default author** for Marketing OS deliveries, imports and new admin posts: the author marked default, else the first author. Updates keep the post's author.
 - **Upgrade: run `php artisan migrate`.** It creates the first author from `BLOG_KIT_AUTHOR_NAME` / `BLOG_KIT_AUTHOR_URL`, makes it the default and assigns it to every existing post. Those variables aren't read after that. Without `BLOG_KIT_AUTHOR_NAME`, no author is created and posts stay without a byline. Overridden `show` or `partials/card` views won't show authors until updated.

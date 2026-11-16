@@ -217,6 +217,7 @@ Everything lives in `config/blog-kit.php`. The most important keys:
 | `processing` | `after_response` | `after_response` (no worker needed) or `queue` (see [Background work](#background-work)) |
 | `after_response.attempts`, `after_response.backoff` | `3`, `[2, 5]` | Inline retries in `after_response` mode |
 | `images.*` | `public` disk, `blog/` | Disk, directory, max size; queue connection, queue name, tries and backoff in `queue` mode |
+| `embeds.hosts` | YouTube, youtube-nocookie, Vimeo player | Hosts whose https iframes stay in post bodies; other iframes are removed. `[]` removes all |
 | `cache.enabled`, `cache.lifetime`, `cache.cache_control` | `true`, 7 days, `public, max-age=300, s-maxage=86400, stale-while-revalidate=60` | Full-page cache and edge headers |
 | `cloudflare.zone_id`, `cloudflare.api_token` | — | Edge purge; skipped with a warning when missing |
 | `filament.gate` | `viewBlogKit` | Gate for the admin section |
@@ -524,8 +525,9 @@ What it does:
   - `:::tip` admonitions and VuePress containers become quotes.
   - `<!-- truncate -->` / `<!-- more -->` are removed. The text before them becomes the excerpt when there's no description.
   - A leading `# Title` is dropped, because the page shows the title.
-- **Local images are copied to the image disk** and the Markdown points at the copies.
-  - Covered: relative paths, `/img/…` from `static/`, `/blog/images/…` from `.vuepress/public`, `require()` in MDX and `srcset`.
+- **Local images, videos and audio are copied to the image disk** and the Markdown points at the copies.
+  - Covered: relative paths, `/img/…` from `static/`, `/blog/images/…` from `.vuepress/public`, `require()` in MDX, `srcset`, and `<video>`, `<audio>`, `<source>` and `poster`.
+  - When the config reads `baseUrl` from an environment variable (`process.env.BASE_URL || '/'`), pass it with `--base-url=/blog/` so paths that include it resolve.
   - Identical files are stored once.
   - Remote images are downloaded afterwards like any other post's.
   - Missing files are listed in the summary and left as they were.

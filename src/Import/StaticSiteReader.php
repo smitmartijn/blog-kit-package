@@ -24,7 +24,10 @@ class StaticSiteReader
 
     public function __construct(private MarkdownCleaner $cleaner) {}
 
-    public function read(string $path): StaticSite
+    /**
+     * @param  string|null  $baseUrl  the old site's base URL, for configs that set it from an environment variable
+     */
+    public function read(string $path, ?string $baseUrl = null): StaticSite
     {
         $root = realpath($path);
 
@@ -32,7 +35,7 @@ class StaticSiteReader
             throw new RuntimeException("{$path} is not a directory.");
         }
 
-        $site = $this->detect($root);
+        $site = $this->detect($root, filled($baseUrl) ? $baseUrl : null);
         $tagLabels = $this->docusaurusTagLabels($site);
 
         foreach ($this->markdownFiles($site->postsDirectory) as $file) {
@@ -58,13 +61,13 @@ class StaticSiteReader
         return $site;
     }
 
-    private function detect(string $root): StaticSite
+    private function detect(string $root, ?string $baseUrlOverride): StaticSite
     {
         $docusaurusConfig = $this->firstExisting($root, ['docusaurus.config.js', 'docusaurus.config.ts', 'docusaurus.config.mjs', 'docusaurus.config.cjs']);
 
         if ($docusaurusConfig !== null) {
             $config = (string) file_get_contents($docusaurusConfig);
-            $baseUrl = $this->configString($config, 'baseUrl') ?? '/';
+            $baseUrl = $baseUrlOverride ?? $this->configString($config, 'baseUrl') ?? '/';
             // Only inside "blog: { … }": the docs plugin has its own path/routeBasePath.
             $blogConfig = preg_match('/\bblog\s*:\s*\{([^}]*)/', $config, $match) ? $match[1] : '';
             $blogPath = $this->configString($blogConfig, 'path') ?? 'blog';
@@ -74,22 +77,24 @@ class StaticSiteReader
                 format: 'docusaurus',
                 root: $root,
                 postsDirectory: $this->join($root, $blogPath),
-                urlBase: '/'.trim(trim($baseUrl, '/').'/'.$routeBasePath, '/').'/',
+                urlBase: $this->urlPath($baseUrl, $routeBasePath),
                 staticRoots: array_values(array_filter([$this->join($root, 'static')], 'is_dir')),
+                assetBase: $this->urlPath($baseUrl),
             );
         }
 
         $vuepressConfig = $this->firstExisting($root, ['.vuepress/config.js', '.vuepress/config.ts', '.vuepress/config.mjs']);
 
         if ($vuepressConfig !== null) {
-            $base = $this->configString((string) file_get_contents($vuepressConfig), 'base') ?? '/';
+            $base = $baseUrlOverride ?? $this->configString((string) file_get_contents($vuepressConfig), 'base') ?? '/';
 
             return new StaticSite(
                 format: 'vuepress',
                 root: $root,
                 postsDirectory: $root,
-                urlBase: '/'.trim($base, '/').($base === '/' ? '' : '/'),
+                urlBase: $this->urlPath($base),
                 staticRoots: array_values(array_filter([$this->join($root, '.vuepress/public'), $root], 'is_dir')),
+                assetBase: $this->urlPath($base),
             );
         }
 
@@ -100,7 +105,16 @@ class StaticSiteReader
             postsDirectory: $root,
             urlBase: '/blog/',
             staticRoots: array_values(array_filter([$this->join(dirname($root), 'static'), $root], 'is_dir')),
+            assetBase: $this->urlPath($baseUrlOverride ?? '/'),
         );
+    }
+
+    /** "/" plus the non-empty segments, with a trailing slash: ("/", "/") → "/", ("/site/", "blog") → "/site/blog/". */
+    private function urlPath(string ...$segments): string
+    {
+        $parts = array_values(array_filter(array_map(fn (string $segment) => trim($segment, '/'), $segments), fn (string $segment) => $segment !== ''));
+
+        return $parts === [] ? '/' : '/'.implode('/', $parts).'/';
     }
 
     /** @param  array<string, string>  $tagLabels */

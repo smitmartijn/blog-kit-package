@@ -12,10 +12,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.2', '8.3', '8.4']
+        php: ['8.3', '8.4', '8.5']
         laravel: ['12', '13']
         filament: ['4', '5']
-        stability: [prefer-lowest, prefer-stable]
+        stability: [prefer-stable]
         exclude:
           # Laravel 13 needs PHP 8.4 here: responsecache 7 stops at Laravel 12,
           # and responsecache 8 requires PHP 8.4.

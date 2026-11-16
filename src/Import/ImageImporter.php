@@ -7,13 +7,17 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * Copies a post's local images onto the blog's image disk and rewrites the
- * Markdown to point at them. Remote (http) images are left alone: the
- * normal image job downloads those after the post is saved.
+ * Copies a post's local images, videos and audio onto the blog's image disk
+ * and rewrites the Markdown to point at them. Remote (http) files are left
+ * alone: the normal image job downloads remote images after the post is saved.
  */
 class ImageImporter
 {
-    private const EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg'];
+    private const EXTENSIONS = [
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg',
+        'mp4', 'webm', 'mov', 'm4v', 'ogv',
+        'mp3', 'm4a', 'ogg', 'oga', 'wav',
+    ];
 
     /** @var array<string, string> local file → stored URL, so shared images are copied once */
     private array $stored = [];
@@ -43,27 +47,34 @@ class ImageImporter
             $markdown,
         );
 
-        // <img src="…">, <source srcset="…"> and MDX src={require('./x.png').default}
+        // <img src="…">, <source srcset="…">, <video src="…" poster="…">, <audio src="…">
+        // and MDX src={require('./x.png').default}; every such attribute in the tag.
+        $attribute = function (array $match) use ($replace) {
+            $value = collect([$match[3] ?? '', $match[4] ?? '', $match[5] ?? ''])->first(fn ($group) => $group !== '') ?? '';
+
+            if (strtolower($match[2]) === 'srcset') {
+                // "a.png 1x, b.png 2x": each candidate separately.
+                $value = collect(explode(',', $value))
+                    ->map(function (string $candidate) use ($replace) {
+                        $parts = preg_split('/\s+/', trim($candidate), 2);
+
+                        return trim($replace($parts[0]).' '.($parts[1] ?? ''));
+                    })
+                    ->implode(', ');
+            } else {
+                $value = $replace($value);
+            }
+
+            return $match[1].'"'.$value.'"';
+        };
+
         $markdown = (string) preg_replace_callback(
-            '/(<(?:img|source)\b[^>]*?\s(src|srcset)\s*=\s*)(?:"([^"]*)"|\'([^\']*)\'|\{require\([\'"]([^\'"]+)[\'"]\)(?:\.default)?\})/i',
-            function (array $match) use ($replace) {
-                $value = collect([$match[3] ?? '', $match[4] ?? '', $match[5] ?? ''])->first(fn ($group) => $group !== '') ?? '';
-
-                if (strtolower($match[2]) === 'srcset') {
-                    // "a.png 1x, b.png 2x": each candidate separately.
-                    $value = collect(explode(',', $value))
-                        ->map(function (string $candidate) use ($replace) {
-                            $parts = preg_split('/\s+/', trim($candidate), 2);
-
-                            return trim($replace($parts[0]).' '.($parts[1] ?? ''));
-                        })
-                        ->implode(', ');
-                } else {
-                    $value = $replace($value);
-                }
-
-                return $match[1].'"'.$value.'"';
-            },
+            '/<(?:img|source|video|audio)\b[^>]*>/i',
+            fn (array $tag) => (string) preg_replace_callback(
+                '/(\s(src|srcset|poster)\s*=\s*)(?:"([^"]*)"|\'([^\']*)\'|\{require\([\'"]([^\'"]+)[\'"]\)(?:\.default)?\})/i',
+                $attribute,
+                $tag[0],
+            ),
             $markdown,
         );
 
@@ -121,13 +132,17 @@ class ImageImporter
         $candidates = [];
 
         if (str_starts_with($path, '/')) {
-            $withoutBase = '/'.ltrim(substr($path, strlen(rtrim($this->site->urlBase, '/'))), '/');
+            // "/blog/img/x.png" may include the blog's URL base or the site's base URL.
+            $bases = array_unique(array_filter(
+                [rtrim($this->site->urlBase, '/'), rtrim($this->site->assetBase, '/')],
+                fn (string $base) => $base !== '' && str_starts_with($path, $base.'/'),
+            ));
 
             foreach ($this->site->staticRoots as $root) {
                 $candidates[] = $root.$path;
 
-                if ($this->site->urlBase !== '/' && str_starts_with($path, rtrim($this->site->urlBase, '/').'/')) {
-                    $candidates[] = $root.$withoutBase;
+                foreach ($bases as $base) {
+                    $candidates[] = $root.substr($path, strlen($base));
                 }
             }
         } else {
@@ -137,7 +152,7 @@ class ImageImporter
         foreach ($candidates as $candidate) {
             $real = realpath($candidate);
 
-            // Only image files inside the site being imported or its static folders.
+            // Only media files inside the site being imported or its static folders.
             if ($real !== false && is_file($real) && $this->insideSite($real)
                 && in_array(strtolower(pathinfo($real, PATHINFO_EXTENSION)), self::EXTENSIONS, true)) {
                 return $real;
