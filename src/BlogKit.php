@@ -14,7 +14,7 @@ class BlogKit
     public const SLUG_PATTERN = '[a-z0-9]+(?:-[a-z0-9]+)*';
 
     /** Path segments the package routes use; posts can't take these slugs. */
-    public const RESERVED_SLUGS = ['api', 'tag', 'page', 'feed', 'rss', 'atom', 'sitemap'];
+    public const RESERVED_SLUGS = ['api', 'tag', 'author', 'page', 'feed', 'rss', 'atom', 'sitemap'];
 
     /** @return list<string|class-string> */
     public static function publicMiddleware(): array

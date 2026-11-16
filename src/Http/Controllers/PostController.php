@@ -14,10 +14,10 @@ class PostController
 {
     public function __invoke(string $slug, SeoBuilder $seo, HtmlSanitizer $sanitizer, RelatedPosts $related): Response|RedirectResponse
     {
-        $post = Post::with('tags')->where('slug', $slug)->first();
+        $post = Post::with(['tags', 'author'])->where('slug', $slug)->first();
 
         if (! $post) {
-            $post = Redirect::with('post.tags')->where('from_slug', $slug)->first()?->post;
+            $post = Redirect::with(['post.tags', 'post.author'])->where('from_slug', $slug)->first()?->post;
             abort_if(! $post, 404);
 
             if ($post->isLive()) {

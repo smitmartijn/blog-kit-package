@@ -24,14 +24,11 @@
                     <p class="mt-4 text-lg leading-relaxed text-(--blog-kit-muted)">{{ $post->excerpt }}</p>
                 @endif
                 <p class="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-(--blog-kit-muted)">
-                    @if (config('blog-kit.author.name'))
-                        <span>
-                            @if (config('blog-kit.author.url'))
-                                <a href="{{ config('blog-kit.author.url') }}" class="hover:underline" rel="author">{{ config('blog-kit.author.name') }}</a>
-                            @else
-                                {{ config('blog-kit.author.name') }}
-                            @endif
-                        </span>
+                    @if ($post->author)
+                        <a href="{{ $post->author->url() }}" class="inline-flex items-center gap-2 font-medium text-(--blog-kit-heading) hover:underline" rel="author">
+                            @include('blog-kit::partials.avatar', ['author' => $post->author, 'size' => 'size-7 text-xs'])
+                            {{ $post->author->name }}
+                        </a>
                         <span aria-hidden="true">·</span>
                     @endif
                     <time datetime="{{ $post->published_at->toIso8601String() }}">{{ $post->published_at->format('F j, Y') }}</time>
@@ -70,6 +67,24 @@
                         <a href="{{ $tag->url() }}" class="rounded-full border border-(--blog-kit-border) px-3 py-1 text-sm hover:border-(--blog-kit-accent) hover:text-(--blog-kit-accent)">{{ $tag->name }}</a>
                     @endforeach
                 </div>
+            @endif
+
+            @if ($post->author && ($post->author->bio || $post->author->job_title))
+                <aside class="mt-12 flex gap-4 rounded-(--blog-kit-radius) border border-(--blog-kit-border) bg-(--blog-kit-surface) p-5" aria-label="About the author">
+                    @include('blog-kit::partials.avatar', ['author' => $post->author, 'size' => 'size-14 text-xl'])
+                    <div class="min-w-0">
+                        <p class="font-semibold text-(--blog-kit-heading)"><a href="{{ $post->author->url() }}" class="hover:underline" rel="author">{{ $post->author->name }}</a></p>
+                        @if ($post->author->job_title)
+                            <p class="text-sm text-(--blog-kit-muted)">{{ $post->author->job_title }}</p>
+                        @endif
+                        @if ($post->author->bio)
+                            <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">{{ $post->author->bio }}</p>
+                        @endif
+                        <div class="mt-3">
+                            @include('blog-kit::partials.author-links', ['author' => $post->author])
+                        </div>
+                    </div>
+                </aside>
             @endif
         </article>
 

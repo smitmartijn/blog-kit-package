@@ -6,6 +6,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -17,6 +18,8 @@ use Spatie\Feed\FeedItem;
  * @property int $id
  * @property string $source
  * @property string|null $content_item_id
+ * @property int|null $author_id
+ * @property-read Author|null $author
  * @property string $slug
  * @property string $title
  * @property array{url?: string, alt_text?: string|null, width?: int|null, height?: int|null}|null $featured_image
@@ -82,6 +85,12 @@ class Post extends Model implements Feedable
     protected static function newFactory(): PostFactory
     {
         return PostFactory::new();
+    }
+
+    /** @return BelongsTo<Author, $this> */
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(Author::class);
     }
 
     /** @return BelongsToMany<Tag, $this> */
@@ -215,7 +224,7 @@ class Post extends Model implements Feedable
             ->summary($this->excerpt ?: $this->seoDescription())
             ->updated($this->modifiedAt() ?? $this->published_at ?? now())
             ->link($this->url())
-            ->authorName((string) (config('blog-kit.author.name') ?: config('blog-kit.publisher.name') ?: config('blog-kit.site_name')))
+            ->authorName((string) ($this->author?->name ?: config('blog-kit.publisher.name') ?: config('blog-kit.site_name')))
             ->category(...$this->tags->pluck('name')->all());
     }
 }

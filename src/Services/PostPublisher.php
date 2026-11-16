@@ -9,6 +9,7 @@ use Lostdomain\BlogKit\BlogKit;
 use Lostdomain\BlogKit\Exceptions\SlugUnavailable;
 use Lostdomain\BlogKit\Jobs\ProcessPostImages;
 use Lostdomain\BlogKit\Jobs\PurgeBlogCache;
+use Lostdomain\BlogKit\Models\Author;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Redirect;
 use Lostdomain\BlogKit\Models\Tag;
@@ -27,7 +28,8 @@ class PostPublisher
     ) {}
 
     /**
-     * Creates or updates a post with new content.
+     * Creates or updates a post with new content. A post without an author
+     * gets the default author unless $attributes sets author_id itself.
      *
      * @param  array<string, mixed>  $attributes
      * @param  list<string>|null  $tags  null leaves tags untouched
@@ -35,12 +37,16 @@ class PostPublisher
     public function save(Post $post, array $attributes, ?array $tags = null): Post
     {
         $before = $post->exists
-            ? ['slug' => $post->getOriginal('slug'), 'tags' => $post->tags()->pluck('slug')->all()]
+            ? ['slug' => $post->getOriginal('slug'), 'tags' => $post->tags()->pluck('slug')->all(), 'author' => $post->author()->value('slug')]
             : null;
 
         DB::transaction(function () use ($post, $attributes, $tags, $before) {
             $post->fill($attributes);
             $this->assertSlugAvailable($post);
+
+            if ($post->author_id === null && ! array_key_exists('author_id', $attributes)) {
+                $post->author_id = Author::default()?->id;
+            }
 
             if ($post->exists) {
                 $post->revision = $post->revision + 1;
@@ -150,11 +156,12 @@ class PostPublisher
         }
     }
 
-    /** @param  array{slug: string, tags: list<string>}|null  $before */
+    /** @param  array{slug: string, tags: list<string>, author: string|null}|null  $before */
     private function afterContentChange(Post $post, ?array $before): void
     {
         $removedTags = $before ? array_values(array_diff($before['tags'], $post->tags()->pluck('slug')->all())) : [];
         $oldSlugs = $before && $before['slug'] !== $post->slug ? [$before['slug']] : [];
+        $oldAuthors = $before && $before['author'] !== null && $before['author'] !== $post->author()->value('slug') ? [$before['author']] : [];
 
         if ($this->images->remoteUrls($post) !== []) {
             $post->forceFill(['images_status' => Post::IMAGES_PENDING])->save();
@@ -162,8 +169,8 @@ class PostPublisher
 
             // Pages the post just left can be purged now; its own pages are
             // purged once the images are local.
-            if ($oldSlugs !== [] || $removedTags !== []) {
-                $this->background->run(new PurgeBlogCache($this->urls->forSlugs($oldSlugs, $removedTags)));
+            if ($oldSlugs !== [] || $removedTags !== [] || $oldAuthors !== []) {
+                $this->background->run(new PurgeBlogCache($this->urls->forSlugs($oldSlugs, $removedTags, $oldAuthors)));
             }
 
             return;
@@ -174,7 +181,7 @@ class PostPublisher
             'image_error' => null,
         ])->save();
 
-        $this->background->run(new PurgeBlogCache($this->urls->forPost($post, $oldSlugs, $removedTags)));
+        $this->background->run(new PurgeBlogCache($this->urls->forPost($post, $oldSlugs, $removedTags, $oldAuthors)));
     }
 
     /** @param  list<string>  $names */

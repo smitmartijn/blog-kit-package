@@ -8,6 +8,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -22,6 +23,8 @@ use Filament\Schemas\Schema;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Lostdomain\BlogKit\BlogKit;
+use Lostdomain\BlogKit\Filament\Resources\Authors\AuthorResource;
+use Lostdomain\BlogKit\Models\Author;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Services\HtmlSanitizer;
 use Lostdomain\BlogKit\Services\HtmlToMarkdown;
@@ -111,6 +114,15 @@ class PostForm
                         ->required()
                         ->default(now())
                         ->helperText('Shown as the post date. Posts are live as soon as they are saved.'),
+                    Select::make('author_id')
+                        ->label('Author')
+                        ->options(fn () => Author::orderBy('name')->pluck('name', 'id'))
+                        ->default(fn () => Author::default()?->id)
+                        ->searchable()
+                        ->placeholder('No author')
+                        ->helperText(fn () => Author::query()->exists()
+                            ? null
+                            : new HtmlString('No authors yet. <a href="'.e(AuthorResource::getUrl('create')).'" class="underline">Add one</a>.')),
                     TagsInput::make('tags')->placeholder('Add a tag'),
                 ]),
                 Section::make('Featured image')->schema([

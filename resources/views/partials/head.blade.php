@@ -43,5 +43,8 @@
 @if (config('blog-kit.twitter_site'))
 <meta name="twitter:site" content="{{ config('blog-kit.twitter_site') }}">
 @endif
+@if ($seo->twitterCreator)
+<meta name="twitter:creator" content="{{ $seo->twitterCreator }}">
+@endif
 {!! $seo->jsonLdScripts() !!}
 @include('blog-kit::partials.styles')

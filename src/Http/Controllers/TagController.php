@@ -14,7 +14,7 @@ class TagController
 
         $posts = $tag->posts()
             ->live()
-            ->with('tags')
+            ->with(['tags', 'author'])
             ->orderByDesc('published_at')
             ->orderByDesc('blog_kit_posts.id')
             ->paginate((int) config('blog-kit.per_page', 12));

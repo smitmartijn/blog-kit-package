@@ -26,6 +26,7 @@ final class Seo
         public array $jsonLd = [],
         public ?string $prev = null,
         public ?string $next = null,
+        public ?string $twitterCreator = null,
     ) {}
 
     /** JSON-LD script tags, escaped so content can't close the script element. */

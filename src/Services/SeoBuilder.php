@@ -3,6 +3,8 @@
 namespace Lostdomain\BlogKit\Services;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Str;
+use Lostdomain\BlogKit\Models\Author;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Tag;
 use Lostdomain\BlogKit\Support\Seo;
@@ -58,6 +60,36 @@ class SeoBuilder
         );
     }
 
+    public function forAuthor(Author $author, LengthAwarePaginator $posts): Seo
+    {
+        $title = $author->name.' – '.config('blog-kit.blog_title');
+
+        if ($posts->currentPage() > 1) {
+            $title .= ' – Page '.$posts->currentPage();
+        }
+
+        $canonical = $this->pageUrl($author->url(), $posts->currentPage());
+
+        return new Seo(
+            title: $this->title($title),
+            description: filled($author->bio)
+                ? Str::limit(preg_replace('/\s+/', ' ', trim((string) $author->bio)), 160)
+                : 'Articles by '.$author->name.'.',
+            canonical: $canonical,
+            type: 'profile',
+            image: $author->avatar_url ?: config('blog-kit.publisher.logo'),
+            jsonLd: [
+                $this->toArray(Schema::profilePage()
+                    ->url($canonical)
+                    ->mainEntity($this->person($author))),
+                $this->breadcrumbs([[$author->name, $author->url()]]),
+            ],
+            prev: $posts->currentPage() > 1 ? $this->pageUrl($author->url(), $posts->currentPage() - 1) : null,
+            next: $posts->hasMorePages() ? $this->pageUrl($author->url(), $posts->currentPage() + 1) : null,
+            twitterCreator: $author->twitterHandle(),
+        );
+    }
+
     public function forPost(Post $post): Seo
     {
         $image = $post->featured_image;
@@ -79,6 +111,7 @@ class SeoBuilder
                 $this->faqPage($post),
                 $this->breadcrumbs([[$post->title, $post->url()]]),
             ])),
+            twitterCreator: $post->author?->twitterHandle(),
         );
     }
 
@@ -103,8 +136,8 @@ class SeoBuilder
             ->inLanguage(str_replace('_', '-', (string) config('blog-kit.locale')))
             ->publisher($this->publisher());
 
-        if ($author = $this->author()) {
-            $posting->author($author);
+        if ($post->author) {
+            $posting->author($this->person($post->author));
         }
 
         if ($images !== []) {
@@ -185,19 +218,27 @@ class SeoBuilder
         return $publisher;
     }
 
-    private function author(): ?BaseType
+    private function person(Author $author): BaseType
     {
-        if (blank(config('blog-kit.author.name'))) {
-            return null;
+        $person = Schema::person()->name($author->name)->url($author->url());
+
+        if (filled($author->job_title)) {
+            $person->jobTitle($author->job_title);
         }
 
-        $author = Schema::person()->name((string) config('blog-kit.author.name'));
-
-        if ($url = config('blog-kit.author.url')) {
-            $author->url($url);
+        if (filled($author->bio)) {
+            $person->description(trim((string) $author->bio));
         }
 
-        return $author;
+        if (filled($author->avatar_url)) {
+            $person->image($author->avatar_url);
+        }
+
+        if ($sameAs = $author->sameAs()) {
+            $person->sameAs($sameAs);
+        }
+
+        return $person;
     }
 
     /** @return array<string, mixed> */

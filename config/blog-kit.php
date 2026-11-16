@@ -77,6 +77,8 @@ return [
 
     'twitter_site' => env('BLOG_KIT_TWITTER_SITE'),
 
+    // The first author: `migrate` creates it as the default author and
+    // assigns it to existing posts. Manage authors in Filament after that.
     'author' => [
         'name' => env('BLOG_KIT_AUTHOR_NAME'),
         'url' => env('BLOG_KIT_AUTHOR_URL'),

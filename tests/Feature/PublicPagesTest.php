@@ -3,6 +3,7 @@
 namespace Lostdomain\BlogKit\Tests\Feature;
 
 use Illuminate\Support\Facades\Queue;
+use Lostdomain\BlogKit\Models\Author;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Redirect;
 use Lostdomain\BlogKit\Models\Tag;
@@ -72,6 +73,7 @@ class PublicPagesTest extends TestCase
             ->assertSee('Updated')
             ->assertSee('2 min read')
             ->assertSee('Martijn Smit')
+            ->assertSee('href="https://example.test/blog/author/martijn-smit"', false)
             ->assertSee('href="https://example.test/blog/tag/zoom"', false);
 
         $this->assertSame(2, $post->readingTime());
@@ -237,7 +239,12 @@ class PublicPagesTest extends TestCase
         $this->assertSame('How to mute Zoom', $posting['headline']);
         $this->assertSame('https://example.test/blog/mute-zoom', $posting['url']);
         $this->assertSame('https://example.test/blog/mute-zoom', $posting['mainEntityOfPage']['@id']);
-        $this->assertSame(['@type' => 'Person', 'name' => 'Martijn Smit', 'url' => 'https://example.test/about'], $posting['author']);
+        $this->assertSame([
+            '@type' => 'Person',
+            'name' => 'Martijn Smit',
+            'url' => 'https://example.test/blog/author/martijn-smit',
+            'sameAs' => ['https://example.test/about'],
+        ], $posting['author']);
         $this->assertSame('Example Inc', $posting['publisher']['name']);
         $this->assertSame('https://example.test/logo.png', $posting['publisher']['logo']['url']);
         $this->assertSame(['https://example.test/storage/blog/hero.png'], $posting['image']);
@@ -296,6 +303,8 @@ class PublicPagesTest extends TestCase
     {
         $post = Post::factory()->create([
             'slug' => 'mute-zoom',
+            // The author the migration created from BLOG_KIT_AUTHOR_NAME/URL.
+            'author_id' => Author::default()->id,
             'title' => 'How to mute Zoom',
             'meta_title' => 'Mute Zoom from anywhere',
             'meta_description' => 'A global shortcut for every meeting app.',

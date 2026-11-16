@@ -39,6 +39,6 @@ class RelatedPosts
                 ->get());
         }
 
-        return $related->load('tags');
+        return $related->load(['tags', 'author']);
     }
 }

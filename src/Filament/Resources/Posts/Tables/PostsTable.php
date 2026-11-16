@@ -27,6 +27,10 @@ class PostsTable
                     ->description(fn (Post $record) => '/'.$record->slug)
                     ->limit(70)
                     ->wrap(),
+                TextColumn::make('author.name')
+                    ->label('Author')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('status')
                     ->state(fn (Post $record) => $record->status())
                     ->badge()
@@ -68,6 +72,9 @@ class PostsTable
                 TernaryFilter::make('locked')
                     ->nullable()
                     ->attribute('locked_at'),
+                SelectFilter::make('author')
+                    ->relationship('author', 'name')
+                    ->preload(),
                 SelectFilter::make('tags')
                     ->relationship('tags', 'name')
                     ->multiple()

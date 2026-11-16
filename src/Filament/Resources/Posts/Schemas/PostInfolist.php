@@ -18,6 +18,7 @@ class PostInfolist
                 Section::make('Post')->columnSpan(['lg' => 2])->columns(2)->schema([
                     TextEntry::make('title')->columnSpanFull(),
                     TextEntry::make('slug')->fontFamily('mono')->url(fn (Post $record) => $record->isLive() ? $record->url() : null, true),
+                    TextEntry::make('author.name')->label('Author')->placeholder('No author')->url(fn (Post $record) => $record->author?->url(), true),
                     TextEntry::make('status')->state(fn (Post $record) => $record->status())->badge()->color(fn (string $state) => PostStatusColors::status($state)),
                     TextEntry::make('published_at')->dateTime(),
                     TextEntry::make('source_updated_at')->label('Updated in source')->dateTime()->placeholder('—'),

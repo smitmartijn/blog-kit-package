@@ -4,6 +4,11 @@ All notable changes to `lostdomain/blog-kit` are documented here. The package fo
 
 ## Unreleased
 
+- **Multiple authors.** Authors have their own page (`/blog/author/{slug}`) with photo, role, bio, website and social profiles, managed under **Authors** in Filament. Posts get an author picker; bylines link to the author page, articles end with an "About the author" box, and cards show the author. JSON-LD `author` is now a full `Person` (author page, `sameAs` profiles), author pages emit `ProfilePage`, and an X profile adds `twitter:creator`. Author pages are in the sitemap and purged with their posts.
+- **Default author** for Marketing OS deliveries, imports and new admin posts: the author marked default, else the first author. Updates keep the post's author.
+- **Upgrade: run `php artisan migrate`.** It creates the first author from `BLOG_KIT_AUTHOR_NAME` / `BLOG_KIT_AUTHOR_URL`, makes it the default and assigns it to every existing post. Those variables aren't read after that. Without `BLOG_KIT_AUTHOR_NAME`, no author is created and posts stay without a byline. Overridden `show` or `partials/card` views won't show authors until updated.
+- `author` is now a reserved post slug.
+
 - `blog-kit:purge` and a **Purge cache** button above the admin post list purge every blog page, leaving the rest of the cache alone.
 - Fix: a purge could report success while pages stayed cached, for example when the command-line user can't write to the web server's cache files. It now checks, logs `blog-kit.cache.local_purge_failed` and fails. `blog-kit:import` reports a failed purge and exits with an error.
 - Fix: `/blog/x/` had its own cache entry that purges never reached. It now shares the entry of `/blog/x`, and both are purged from Cloudflare (so Cloudflare receives about twice as many URLs per purge).

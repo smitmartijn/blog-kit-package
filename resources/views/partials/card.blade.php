@@ -22,6 +22,10 @@
             <p class="line-clamp-3 text-sm leading-relaxed text-(--blog-kit-muted)">{{ $post->excerpt }}</p>
         @endif
         <p class="mt-auto pt-2 text-xs text-(--blog-kit-muted)">
+            @if ($post->author)
+                <a href="{{ $post->author->url() }}" class="font-medium hover:underline">{{ $post->author->name }}</a>
+                <span aria-hidden="true">·</span>
+            @endif
             <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ $post->published_at?->format('F j, Y') }}</time>
             <span aria-hidden="true">·</span>
             {{ $post->readingTime() }} min read

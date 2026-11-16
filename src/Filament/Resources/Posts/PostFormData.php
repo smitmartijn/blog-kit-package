@@ -62,6 +62,7 @@ class PostFormData
 
         $data['faq'] = array_values((array) ($data['faq'] ?? [])) ?: null;
         $data['cta'] = filled($data['cta'] ?? null) ? (string) $data['cta'] : null;
+        $data['author_id'] = filled($data['author_id'] ?? null) ? (int) $data['author_id'] : null;
 
         $data['body_format'] = ($data['body_format'] ?? Post::FORMAT_MARKDOWN) === Post::FORMAT_HTML
             ? Post::FORMAT_HTML

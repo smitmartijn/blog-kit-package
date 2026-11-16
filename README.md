@@ -18,6 +18,7 @@ It is deliberately only a blog: no page builder, no generic CMS.
   - [Layout integration](#layout-integration)
   - [Theming and overriding views](#theming-and-overriding-views)
   - [Filament admin](#filament-admin)
+    - [Authors](#authors)
   - [Marketing OS API (contract v1)](#marketing-os-api-contract-v1)
     - [Authentication](#authentication)
     - [Body](#body)
@@ -103,7 +104,7 @@ Run these checks and **stop with a report** if any of them fails:
 Ask these questions together, once, before installing. Offer the defaults in brackets.
 
 1. **Blog title and description** shown on `/blog`. [title: "Blog"]
-2. **Author name and URL** for the byline and JSON-LD. [a person or the company]
+2. **First author's name and URL** (`BLOG_KIT_AUTHOR_NAME` / `BLOG_KIT_AUTHOR_URL`). `migrate` creates this author as the default author; more authors are added in Filament (see [Authors](#authors)). [a person or the company]
 3. **Publisher logo URL**, an absolute URL to a square or wide PNG. [look for one in `public/`]
 4. **Marketing OS product id** for this app, which turns on the `BLOG_KIT_PRODUCT_ID` guard. [leave empty]
 5. **Image disk**: `public`, or an existing S3/R2 disk with a public `url`. [`public`]
@@ -141,7 +142,7 @@ Ask these questions together, once, before installing. Offer the defaults in bra
 Run every check and include the results in your report.
 
 ```bash
-php artisan route:list --name=blog-kit   # 7 routes: api.posts, index, feed.rss, feed.atom, sitemap, tag, show
+php artisan route:list --name=blog-kit   # 9 routes: api.posts, index, feed.rss, feed.atom, sitemap, tag, author, show, legacy
 php artisan config:show blog-kit         # token/secret set, layout and sections as intended
 ```
 
@@ -210,7 +211,8 @@ Everything lives in `config/blog-kit.php`. The most important keys:
 | `sections.content`, `sections.title` | `content`, `title` | Section names the views fill |
 | `head_stack` | `head` | Stack the views push meta tags, JSON-LD and theme CSS onto |
 | `site_name`, `blog_title`, `blog_description`, `title_format` | | Titles and descriptions; `title_format` is `:title \| :site` |
-| `author.*`, `publisher.*` | | Used in JSON-LD, Open Graph and the byline |
+| `author.name`, `author.url` | | Seed the first author when the authors migration runs (see [Authors](#authors)). Not read after that |
+| `publisher.*` | | Used in JSON-LD, Open Graph and the feeds |
 | `per_page`, `related_count`, `reading_words_per_minute` | `12`, `3`, `220` | Listing |
 | `processing` | `after_response` | `after_response` (no worker needed) or `queue` (see [Background work](#background-work)) |
 | `after_response.attempts`, `after_response.backoff` | `3`, `[2, 5]` | Inline retries in `after_response` mode |
@@ -294,11 +296,12 @@ Gate::define('viewBlogKit', fn (User $user) => $user->is_admin);
 
 If the gate isn't defined, the section is forbidden and `blog-kit.filament.gate_missing` is logged.
 
-The section has **Posts** and **Redirects**:
+The section has **Posts**, **Authors** and **Redirects**:
 
-- **List and view posts**: status (live / hidden / unpublished), source, image status with per-image errors, lock state and redirects.
+- **List and view posts**: author, status (live / hidden / unpublished), source, image status with per-image errors, lock state and redirects.
 - **Create posts locally.** Local posts are not tied to Marketing OS, and the API never touches them.
-- **Edit any post.** Slug changes keep a 301. Remote image URLs in the body are downloaded after saving.
+- **Edit any post.** Pick its author (new posts start with the default author). Slug changes keep a 301. Remote image URLs in the body are downloaded after saving.
+- **Authors**: see [Authors](#authors).
 - **Actions**: view on site, retry images, purge cache, hide/restore, release lock, delete. The **Purge cache** button above the post list purges every blog page.
 - **Redirects**: add old slugs (useful when migrating) and remove them.
 
@@ -320,6 +323,17 @@ Marketing OS needs no changes for any of this. The API contract and delivered po
 **Locking.** Editing a post that came from Marketing OS locks it. From then on Marketing OS `publish`/`update` deliveries for that post get **409** (`post_locked`), so your local edits are never silently overwritten and the conflict shows as a failed delivery in Marketing OS. `unpublish` still goes through. **Release lock** accepts updates again; the next update overwrites the local edits.
 
 **Hide vs unpublish.** *Hide* (admin) returns 404, a temporary takedown. *Unpublish* (Marketing OS) returns 410 Gone, which tells search engines the page is gone for good.
+
+### Authors
+
+Every post can have an author with their own page at `/blog/author/{slug}`: photo, name, role, bio, website and social profiles (X, LinkedIn, GitHub, Bluesky, Mastodon, Threads, YouTube, Instagram, Facebook, TikTok, other), followed by their posts.
+
+- **On posts**: the byline links to the author page, and when the author has a bio or role, an "About the author" box follows the article. Cards on the index, tag and author pages show the author's name. A post without an author shows no byline.
+- **SEO**: the BlogPosting's `author` is a `Person` with the author page as `url` and the website and profiles as `sameAs`. The author page emits `ProfilePage` JSON-LD. An X profile adds `twitter:creator`. Author pages with live posts are in the sitemap; the feeds use the author's name.
+- **Default author.** One author can be marked **Default author**. Marketing OS deliveries, `blog-kit:import` and new admin posts get that author. Without a default, the first author created is used. Marketing OS updates never change the author of an existing post, so an author picked in the admin stays.
+- **Deleting an author** asks which author takes over their posts (or none).
+- **Upgrading from a single author.** The migration creates the first author from `BLOG_KIT_AUTHOR_NAME` and `BLOG_KIT_AUTHOR_URL` (as their website), marks it default and assigns it to every existing post. Without `BLOG_KIT_AUTHOR_NAME`, no author is created and posts keep showing no byline until you add one. After migrating, those two variables are no longer read; edit the author in Filament instead.
+- Changing an author who has posts purges the whole blog, because their name appears on every page that lists their posts.
 
 ## Marketing OS API (contract v1)
 
@@ -359,7 +373,7 @@ $signature = hash_hmac('sha256', $timestamp.'.'.$body, $secret);
 | `delivery_id` | Stored as `last_delivery_id` |
 | `sent_at` | Optional |
 | `product_id`, `content_item_id` | `content_item_id` is the idempotency key |
-| `slug` | `^[a-z0-9]+(-[a-z0-9]+)*$`, not `api`, `tag`, `page`, `feed`, `rss`, `atom`, `sitemap` |
+| `slug` | `^[a-z0-9]+(-[a-z0-9]+)*$`, not `api`, `tag`, `author`, `page`, `feed`, `rss`, `atom`, `sitemap` |
 | `title`, `body_html` | Required for publish/update |
 | `meta_title`, `meta_description`, `excerpt`, `body_markdown` | Optional |
 | `featured_image` | `{url, alt_text, width, height}` or `null` |
@@ -382,6 +396,7 @@ For `unpublish`, only `schema_version`, `event`, `delivery_id`, `product_id`, `c
 - **Slug change.** The old slug answers with a 301 to the new one. A slug owned by another post (including a local post) is a 422.
 - **Unpublish.** The post is hidden and its URL, including old slugs, returns 410. A later `publish` makes it live again.
 - **Locked posts.** Locked posts get 409 for publish/update (see [Filament admin](#filament-admin)).
+- **Author.** A new post gets the default author (see [Authors](#authors)). Updates keep the post's author. The contract has no author field, so nothing changes in Marketing OS.
 
 ### Responses
 
@@ -425,6 +440,7 @@ After a publish, update or unpublish (and after images are processed), `PurgeBlo
 - the article, at its current slug and every old slug
 - every index page, plus one page beyond the current last page
 - every tag page of the old and new tags
+- the author page of the old and new author
 - both feeds and the sitemap
 
 Admin actions purge the same way.
@@ -470,7 +486,7 @@ Only use `queue` on sites that run a worker. Without one, the jobs wait in the q
 | --- | --- |
 | `/blog/rss.xml` | RSS 2.0, latest `feed.items` posts |
 | `/blog/atom.xml` | Atom |
-| `/blog/sitemap.xml` | Index, live posts (with lastmod and featured image) and tags that have live posts |
+| `/blog/sitemap.xml` | Index, live posts (with lastmod and featured image), and tags and authors that have live posts |
 
 To include the blog in your own sitemap:
 

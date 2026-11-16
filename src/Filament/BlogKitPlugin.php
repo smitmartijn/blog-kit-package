@@ -4,6 +4,7 @@ namespace Lostdomain\BlogKit\Filament;
 
 use Filament\Contracts\Plugin;
 use Filament\Panel;
+use Lostdomain\BlogKit\Filament\Resources\Authors\AuthorResource;
 use Lostdomain\BlogKit\Filament\Resources\Posts\PostResource;
 use Lostdomain\BlogKit\Filament\Resources\Redirects\RedirectResource;
 use UnitEnum;
@@ -42,6 +43,7 @@ class BlogKitPlugin implements Plugin
     {
         $panel->resources([
             PostResource::class,
+            AuthorResource::class,
             RedirectResource::class,
         ]);
     }

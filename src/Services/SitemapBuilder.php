@@ -2,6 +2,7 @@
 
 namespace Lostdomain\BlogKit\Services;
 
+use Lostdomain\BlogKit\Models\Author;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Tag;
 use Spatie\Sitemap\Sitemap;
@@ -47,6 +48,13 @@ class SitemapBuilder
             ->get()
             ->each(function (Tag $tag) use (&$tags) {
                 $tags[] = Url::create($tag->url())->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY);
+            });
+
+        Author::whereHas('posts', fn ($query) => $query->live())
+            ->orderBy('slug')
+            ->get()
+            ->each(function (Author $author) use (&$tags) {
+                $tags[] = Url::create($author->url())->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY);
             });
 
         return $tags;

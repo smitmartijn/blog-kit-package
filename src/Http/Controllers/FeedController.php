@@ -20,7 +20,7 @@ class FeedController
     private function feed(string $format, string $url): Feed
     {
         $posts = Post::live()
-            ->with('tags')
+            ->with(['tags', 'author'])
             ->orderByDesc('published_at')
             ->limit((int) config('blog-kit.feed.items', 20))
             ->get();

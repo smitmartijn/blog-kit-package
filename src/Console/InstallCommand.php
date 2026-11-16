@@ -32,7 +32,8 @@ class InstallCommand extends Command
         $this->line('   BLOG_KIT_SIGNING_SECRET='.Str::random(64));
         $this->line('   BLOG_KIT_PRODUCT_ID=            # Marketing OS product id, optional guard');
         $this->line('   BLOG_KIT_LAYOUT=layouts.app     # the layout the blog views @extends');
-        $this->line('   BLOG_KIT_AUTHOR_NAME=  BLOG_KIT_PUBLISHER_LOGO=');
+        $this->line('   BLOG_KIT_AUTHOR_NAME=  BLOG_KIT_AUTHOR_URL=   # first author, created by migrate');
+        $this->line('   BLOG_KIT_PUBLISHER_LOGO=');
         $this->line('   BLOG_KIT_CLOUDFLARE_ZONE_ID=  BLOG_KIT_CLOUDFLARE_API_TOKEN=   # token needs Zone > Cache Purge');
         $this->line('   RESPONSE_CACHE_DRIVER=redis     # store for the full-page cache');
         $this->newLine();

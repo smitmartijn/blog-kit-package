@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Lostdomain\BlogKit\BlogKit;
+use Lostdomain\BlogKit\Http\Controllers\AuthorController;
 use Lostdomain\BlogKit\Http\Controllers\FeedController;
 use Lostdomain\BlogKit\Http\Controllers\IndexController;
 use Lostdomain\BlogKit\Http\Controllers\LegacyUrlController;
@@ -26,6 +27,7 @@ Route::group([
         Route::get('atom.xml', [FeedController::class, 'atom'])->name('feed.atom');
         Route::get('sitemap.xml', SitemapController::class)->name('sitemap');
         Route::get('tag/{tag}', TagController::class)->name('tag')->where('tag', BlogKit::SLUG_PATTERN);
+        Route::get('author/{author}', AuthorController::class)->name('author')->where('author', BlogKit::SLUG_PATTERN);
         Route::get('{slug}', PostController::class)->name('show')->where('slug', BlogKit::SLUG_PATTERN);
         // Last: old URLs from an imported Docusaurus/VuePress blog.
         Route::get('{path}', LegacyUrlController::class)->name('legacy')->where('path', '.+');

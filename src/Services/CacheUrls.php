@@ -2,14 +2,15 @@
 
 namespace Lostdomain\BlogKit\Services;
 
+use Lostdomain\BlogKit\Models\Author;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Redirect;
 use Lostdomain\BlogKit\Models\Tag;
 
 /**
  * Every public URL whose response may change when a post changes: the
- * article (current and redirected slugs), all index and tag pages, the
- * feeds and the sitemap.
+ * article (current and redirected slugs), all index pages, its tag and
+ * author pages, the feeds and the sitemap.
  */
 class CacheUrls
 {
@@ -23,28 +24,32 @@ class CacheUrls
         return $this->forSlugs(
             [...Post::pluck('slug')->all(), ...Redirect::pluck('from_slug')->all()],
             Tag::pluck('slug')->all(),
+            Author::pluck('slug')->all(),
         );
     }
 
     /**
      * @param  list<string>  $extraSlugs  slugs the post no longer answers to (e.g. before a rename)
      * @param  list<string>  $extraTagSlugs  tags the post was removed from
+     * @param  list<string>  $extraAuthorSlugs  authors the post was moved away from
      * @return list<string>
      */
-    public function forPost(Post $post, array $extraSlugs = [], array $extraTagSlugs = []): array
+    public function forPost(Post $post, array $extraSlugs = [], array $extraTagSlugs = [], array $extraAuthorSlugs = []): array
     {
         $slugs = [$post->slug, ...$post->redirects()->pluck('from_slug')->all(), ...$extraSlugs];
         $tagSlugs = [...$post->tags()->pluck('slug')->all(), ...$extraTagSlugs];
+        $authorSlugs = array_values(array_filter([$post->author()->value('slug'), ...$extraAuthorSlugs]));
 
-        return $this->forSlugs($slugs, $tagSlugs);
+        return $this->forSlugs($slugs, $tagSlugs, $authorSlugs);
     }
 
     /**
      * @param  list<string>  $slugs
      * @param  list<string>  $tagSlugs
+     * @param  list<string>  $authorSlugs
      * @return list<string>
      */
-    public function forSlugs(array $slugs, array $tagSlugs): array
+    public function forSlugs(array $slugs, array $tagSlugs, array $authorSlugs = []): array
     {
         $urls = [];
 
@@ -59,6 +64,10 @@ class CacheUrls
 
         foreach (array_unique($tagSlugs) as $tagSlug) {
             $urls = [...$urls, ...$this->tagUrls($tagSlug)];
+        }
+
+        foreach (array_unique($authorSlugs) as $authorSlug) {
+            $urls = [...$urls, ...$this->authorUrls($authorSlug)];
         }
 
         return array_values(array_unique([...$urls, ...$this->globalUrls()]));
@@ -77,6 +86,15 @@ class CacheUrls
         $count = $tag ? $tag->posts()->live()->count() : 0;
 
         return $this->paginatedUrls(route('blog-kit.tag', $tagSlug), $count);
+    }
+
+    /** @return list<string> */
+    public function authorUrls(string $authorSlug): array
+    {
+        $author = Author::where('slug', $authorSlug)->first();
+        $count = $author ? $author->posts()->live()->count() : 0;
+
+        return $this->paginatedUrls(route('blog-kit.author', $authorSlug), $count);
     }
 
     /** @return list<string> */

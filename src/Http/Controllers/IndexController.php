@@ -11,7 +11,7 @@ class IndexController
     public function __invoke(SeoBuilder $seo): View
     {
         $posts = Post::live()
-            ->with('tags')
+            ->with(['tags', 'author'])
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->paginate((int) config('blog-kit.per_page', 12));
