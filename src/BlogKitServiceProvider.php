@@ -18,7 +18,8 @@ class BlogKitServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/blog-kit.php', 'blog-kit');
 
-        $this->app->singleton(HtmlSanitizer::class);
+        // Built explicitly: Filament binds its own HtmlSanitizerConfig, which autowiring would inject.
+        $this->app->singleton(HtmlSanitizer::class, fn () => new HtmlSanitizer);
         $this->app->singleton(MarkdownRenderer::class);
         $this->app->singleton(Background::class);
         $this->app->extend(RequestHasher::class, fn (RequestHasher $hasher) => new SlashInsensitiveHasher($hasher));

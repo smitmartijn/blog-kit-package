@@ -74,4 +74,13 @@ class MarkdownRendererTest extends TestCase
     {
         $this->assertStringContainsString('<details><summary>More</summary>', $this->render('<details><summary>More</summary>Text</details>'));
     }
+
+    #[Test]
+    public function raw_iframes_pass_through_for_the_sanitizer_to_judge(): void
+    {
+        $html = $this->render("Watch:\n\n<iframe src=\"https://www.youtube.com/embed/abc\" title=\"Demo\"></iframe>\n\n<script>alert(1)</script>");
+
+        $this->assertStringContainsString('<iframe src="https://www.youtube.com/embed/abc" title="Demo"></iframe>', $html);
+        $this->assertStringContainsString('&lt;script>', $html);
+    }
 }

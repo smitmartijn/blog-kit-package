@@ -7,6 +7,7 @@ use Lostdomain\BlogKit\Models\Author;
 use Lostdomain\BlogKit\Models\Post;
 use Lostdomain\BlogKit\Models\Redirect;
 use Lostdomain\BlogKit\Models\Tag;
+use Lostdomain\BlogKit\Services\HtmlSanitizer;
 use Lostdomain\BlogKit\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -89,6 +90,42 @@ class PublicPagesTest extends TestCase
             ->assertSee('<h1 id="hi">hi</h1>', false)
             ->assertSee(':where(.blog-kit-prose) :where(h1, h2, h3, h4, h5, h6)', false)
             ->assertSee(':where(.blog-kit-prose) :where(h1) { font-size', false);
+    }
+
+    #[Test]
+    public function embeds_from_allowed_hosts_are_kept_and_others_removed(): void
+    {
+        Post::factory()->create([
+            'slug' => 'embeds',
+            'body_html' => '<iframe src="https://www.youtube.com/embed/abc" title="Demo" allowfullscreen onload="x()"></iframe>'
+                .'<iframe src="http://www.youtube.com/embed/insecure"></iframe>'
+                .'<iframe src="https://evil.test/embed"></iframe>'
+                .'<iframe src="/relative/embed"></iframe>'
+                .'<iframe src="https://www.youtube.com.evil.test/embed"></iframe>',
+        ]);
+
+        $body = str($this->get('/blog/embeds')->assertOk()->getContent())->after('blog-kit-prose')->before('</article>')->toString();
+
+        $this->assertStringContainsString('<iframe src="https://www.youtube.com/embed/abc" title="Demo" allowfullscreen', $body);
+        $this->assertSame(1, substr_count($body, '<iframe'));
+        $this->assertStringNotContainsString('onload', $body);
+    }
+
+    #[Test]
+    public function an_empty_embed_host_list_removes_every_iframe(): void
+    {
+        config(['blog-kit.embeds.hosts' => []]);
+        $this->app->forgetInstance(HtmlSanitizer::class);
+
+        Post::factory()->create([
+            'slug' => 'no-embeds',
+            'body_html' => '<p>Text</p><iframe src="https://www.youtube.com/embed/abc"></iframe>',
+        ]);
+
+        $body = str($this->get('/blog/no-embeds')->assertOk()->getContent())->after('blog-kit-prose')->before('</article>')->toString();
+
+        $this->assertStringContainsString('Text', $body);
+        $this->assertStringNotContainsString('<iframe', $body);
     }
 
     #[Test]

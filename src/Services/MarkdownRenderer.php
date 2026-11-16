@@ -26,6 +26,11 @@ class MarkdownRenderer
         $environment = new Environment([
             'html_input' => 'allow',
             'allow_unsafe_links' => false,
+            // GFM escapes these raw tags. iframe is left out of its default list:
+            // HtmlSanitizer decides which embeds survive (see blog-kit.embeds).
+            'disallowed_raw_html' => [
+                'disallowed_tags' => ['title', 'textarea', 'style', 'xmp', 'noembed', 'noframes', 'script', 'plaintext'],
+            ],
             'heading_permalink' => [
                 'insert' => HeadingPermalinkProcessor::INSERT_NONE,
                 'apply_id_to_heading' => true,

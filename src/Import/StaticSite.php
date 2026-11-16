@@ -11,6 +11,7 @@ final class StaticSite
      * @param  list<string>  $staticRoots  directories root-relative assets ("/img/x.png") resolve against
      * @param  list<SourcePost>  $posts
      * @param  list<array{file: string, reason: string}>  $skipped
+     * @param  string  $assetBase  where the old site served its static files, e.g. "/" (Docusaurus baseUrl)
      */
     public function __construct(
         public string $format,
@@ -20,5 +21,6 @@ final class StaticSite
         public array $staticRoots,
         public array $posts = [],
         public array $skipped = [],
+        public string $assetBase = '/',
     ) {}
 }

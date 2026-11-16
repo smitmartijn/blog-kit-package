@@ -34,6 +34,8 @@ class RedirectResource extends Resource
 
     protected static ?string $navigationLabel = 'Redirects';
 
+    protected static ?string $recordTitleAttribute = 'from_slug';
+
     protected static ?int $navigationSort = 3;
 
     public static function form(Schema $schema): Schema

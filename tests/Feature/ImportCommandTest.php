@@ -68,8 +68,15 @@ class ImportCommandTest extends TestCase
         $this->assertMatchesRegularExpression('#<img src="https://example.test/storage/blog/imported/[^"]+\.png" alt="Inline" />#', $folder->body_markdown);
         $this->assertStringContainsString('![Missing](./missing.png)', $folder->body_markdown);
 
-        // Files are stored by content: the fixture's two identical PNGs become one file.
-        $this->assertCount(1, Storage::disk('public')->allFiles('blog/imported'));
+        // Videos and their posters are copied too, and embeds survive rendering.
+        $this->assertMatchesRegularExpression('#<video controls width=\{600\} poster="https://example.test/storage/blog/imported/[^"]+\.png">#', $folder->body_markdown);
+        $this->assertMatchesRegularExpression('#<source src="https://example.test/storage/blog/imported/[^"]+\.mp4" type="video/mp4" />#', $folder->body_markdown);
+        $this->assertStringContainsString('<iframe width="560" height="315" src="https://www.youtube.com/embed/abc123"', $folder->body_html);
+
+        // Files are stored by content: the fixture's identical PNGs become one file, plus the video.
+        $files = Storage::disk('public')->allFiles('blog/imported');
+        $this->assertCount(2, $files);
+        $this->assertSame(['mp4', 'png'], collect($files)->map(fn (string $file) => pathinfo($file, PATHINFO_EXTENSION))->sort()->values()->all());
     }
 
     #[Test]
