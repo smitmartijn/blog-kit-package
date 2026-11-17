@@ -24,6 +24,7 @@ It is deliberately only a blog: no page builder, no generic CMS.
     - [Body](#body)
     - [Behaviour](#behaviour)
     - [Responses](#responses)
+  - [Read API (for agents)](#read-api-for-agents)
   - [Images](#images)
   - [Caching and Cloudflare](#caching-and-cloudflare)
   - [Background work](#background-work)
@@ -142,7 +143,7 @@ Ask these questions together, once, before installing. Offer the defaults in bra
 Run every check and include the results in your report.
 
 ```bash
-php artisan route:list --name=blog-kit   # 9 routes: api.posts, index, feed.rss, feed.atom, sitemap, tag, author, show, legacy
+php artisan route:list --name=blog-kit   # 12 routes: api.posts, read-api.posts.index, read-api.posts.show, read-api.search, index, feed.rss, feed.atom, sitemap, tag, author, show, legacy
 php artisan config:show blog-kit         # token/secret set, layout and sections as intended
 ```
 
@@ -207,6 +208,8 @@ Everything lives in `config/blog-kit.php`. The most important keys:
 | `api.token`, `api.signing_secret` | — | Required. Without both, every API call is a 401 and an error is logged |
 | `api.tolerance` | `300` | Max age (and future skew) of the request timestamp, seconds |
 | `api.product_id` | `null` | When set, other products' payloads are a 422 |
+| `read_api.token` | — | Turns on the [read API](#read-api-for-agents) (`BLOG_KIT_READ_TOKEN`) |
+| `read_api.middleware` | `[]` | Extra middleware for the read API, e.g. `throttle:120,1` |
 | `layout` | `layouts.app` | Layout the views `@extends` |
 | `sections.content`, `sections.title` | `content`, `title` | Section names the views fill |
 | `head_stack` | `head` | Stack the views push meta tags, JSON-LD and theme CSS onto |
@@ -411,6 +414,51 @@ For `unpublish`, only `schema_version`, `event`, `delivery_id`, `product_id`, `c
 | 422 | `{"message": "...", "errors": {"field": ["..."]}}` |
 
 The API stores the post and answers straight away. The slow work (image downloads, purges) runs after the response is sent, or on the queue, so it answers well within Marketing OS's 15 s timeout.
+
+## Read API (for agents)
+
+A read-only JSON API over **published** posts, for agents that research the blog: list everything, search the full text, and read a post. Hidden, unpublished and draft posts never appear (an unpublished post's URL answers 410).
+
+It's off until you set a token. Use its own token, not the Marketing OS one, because that one can publish:
+
+```dotenv
+BLOG_KIT_READ_TOKEN=...   # e.g. php -r 'echo bin2hex(random_bytes(24));'
+```
+
+```
+GET {prefix}/api/v1/posts                 inventory
+GET {prefix}/api/v1/search?q=...          full-text search
+GET {prefix}/api/v1/posts/{slug-or-id}    one post, complete
+Authorization: Bearer {BLOG_KIT_READ_TOKEN}
+```
+
+**Inventory** (`/posts`): every published post without bodies, newest first. Each item has `id`, `slug`, `url` (canonical), `title`, `excerpt`, `author`, `tags`, `published_at`, `updated_at` and `version`. Parameters: `per_page` (default 50, max 100), `page`, `order` (`newest`/`oldest`), and the filters `tag` and `author` (slugs), `published_after` and `published_before`.
+
+**Search** (`/search?q=`): searches the title, excerpt, every heading, the body text and the FAQ. Markup is never matched.
+
+- Every term must match (AND), case-insensitively, anywhere in the post. `"quoted phrases"` match as a whole. No stemming: `mute` doesn't find `muting`. At most 10 terms are used.
+- Title matches rank first, then newest first. Default `per_page` is 20. The inventory's filters work here too.
+- Each result is an inventory item plus `reading_time_minutes`, `matched_in` (`title`, `excerpt`, `body`) and up to 3 `excerpts`. Each excerpt is about 300 characters of text around a match, with the `heading` of its section and an `anchor` URL to that heading.
+
+**Post** (`/posts/{slug-or-id}`): the inventory fields plus `meta_description`, `outline` (every heading with level and anchor URL), `content`, `faq`, `cta` and `featured_image`.
+
+- `content.body` is the sanitized article as Markdown, the same HTML the page serves. Headings and links are kept, and root-relative links and images are made absolute. Use `?format=html` for the HTML instead.
+- Old slugs resolve to the post; `slug` and `url` are always the current ones.
+- `version` goes up with every content change. The response has an `ETag`, and `If-None-Match` answers 304 while the post is unchanged.
+
+**Telling "no match" from "nothing here".** Every list and search response has `meta.total` (matches for this request) and `meta.total_published` (every published post, ignoring `q` and filters), plus `meta.page`, `meta.last_page` and `links.next`/`links.prev`. An empty search with `total_published` > 0 means the words aren't in any post. The inventory is then the place to look for a related article under other words.
+
+| Status | When |
+| --- | --- |
+| 200 / 304 | OK / unchanged (post, with `If-None-Match`) |
+| 401 | `reason`: `not_configured` (no `BLOG_KIT_READ_TOKEN`) or `invalid_token` |
+| 404 | `{"error": "not_found"}`: no published post with this slug or id |
+| 410 | `{"error": "gone"}`: the post was unpublished |
+| 422 | Bad parameters, or a search without a term |
+
+Responses send `Cache-Control: private, no-cache`, and they never pass through the full-page cache. To rate-limit the API, add `'throttle:120,1'` to `read_api.middleware`.
+
+Search runs `LIKE` queries on a plain-text copy of each post (`search_text`), kept up to date on save. That's fast enough for a blog of a few thousand posts on SQLite, MySQL or Postgres.
 
 ## Images
 

@@ -39,6 +39,14 @@ return [
         'middleware' => [],
     ],
 
+    // Read-only API for agents under {prefix}/api/v1: list, search and read
+    // published posts. Off until a token is set. Add e.g. 'throttle:120,1'
+    // to middleware to rate-limit it.
+    'read_api' => [
+        'token' => env('BLOG_KIT_READ_TOKEN'),
+        'middleware' => [],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Layout

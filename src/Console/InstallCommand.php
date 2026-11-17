@@ -31,6 +31,7 @@ class InstallCommand extends Command
         $this->line('   BLOG_KIT_API_TOKEN='.Str::random(48));
         $this->line('   BLOG_KIT_SIGNING_SECRET='.Str::random(64));
         $this->line('   BLOG_KIT_PRODUCT_ID=            # Marketing OS product id, optional guard');
+        $this->line('   BLOG_KIT_READ_TOKEN=            # optional: turns on the read API for agents');
         $this->line('   BLOG_KIT_LAYOUT=layouts.app     # the layout the blog views @extends');
         $this->line('   BLOG_KIT_AUTHOR_NAME=  BLOG_KIT_AUTHOR_URL=   # first author, created by migrate');
         $this->line('   BLOG_KIT_PUBLISHER_LOGO=');

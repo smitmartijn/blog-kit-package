@@ -4,6 +4,8 @@ All notable changes to `lostdomain/blog-kit` are documented here. The package fo
 
 ## Unreleased
 
+- **Read API for agents** under `{prefix}/api/v1`, off until `BLOG_KIT_READ_TOKEN` is set: a paginated inventory of published posts (`/posts`), full-text search over the title, headings, body and FAQ with excerpts around each match (`/search?q=`), and complete posts as Markdown or HTML with outline, version and ETag (`/posts/{slug-or-id}`). `meta.total_published` tells "no match" apart from "no posts". Run `php artisan migrate`: it adds and fills `search_text`.
+
 - **Video embeds.** YouTube and Vimeo iframes in a post body are kept (`blog-kit.embeds.hosts`, https only, exact host match); every other iframe is removed. Markdown no longer escapes `<iframe>`, so embeds written in Markdown or imported from Docusaurus render. Published configs get the default host list automatically.
 - `blog-kit:import` copies local videos and audio (`<video>`, `<audio>`, `<source>` and `poster`) as well as images, and rewrites every media attribute in a tag instead of the first.
 - `blog-kit:import --base-url=/blog/` for Docusaurus and VuePress configs that read the base URL from an environment variable, so static files referenced with it are found.

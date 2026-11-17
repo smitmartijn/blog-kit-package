@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 use Lostdomain\BlogKit\Database\Factories\PostFactory;
+use Lostdomain\BlogKit\Support\PostText;
 use Spatie\Feed\Feedable;
 use Spatie\Feed\FeedItem;
 
@@ -54,6 +55,8 @@ class Post extends Model implements Feedable
 
     protected $guarded = ['id'];
 
+    protected $hidden = ['search_text'];
+
     protected $attributes = [
         'source' => self::SOURCE_MARKETING_OS,
         'body_format' => self::FORMAT_HTML,
@@ -85,6 +88,16 @@ class Post extends Model implements Feedable
     protected static function newFactory(): PostFactory
     {
         return PostFactory::new();
+    }
+
+    protected static function booted(): void
+    {
+        // The read API searches this; it follows every change to the text.
+        static::saving(function (Post $post) {
+            if ($post->isDirty(['title', 'excerpt', 'body_html', 'faq']) || $post->getAttribute('search_text') === null) {
+                $post->search_text = PostText::searchText($post->title, $post->excerpt, $post->body_html, $post->faq);
+            }
+        });
     }
 
     /** @return BelongsTo<Author, $this> */
